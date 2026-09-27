@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="MauiGps.MainPage">
 
+    <!--
     <ScrollView>
         <VerticalStackLayout
             Padding="30,0"
@@ -32,5 +33,19 @@
                 HorizontalOptions="Fill" />
         </VerticalStackLayout>
     </ScrollView>
+    -->
+    <VerticalStackLayout Padding="30" Spacing="20" HorizontalOptions="Center" VerticalOptions="Center">
 
+        <!-- Статус GPS -->
+        <Label x:Name="StatusLabel" Text="Статус: Неизвестно" FontSize="18" FontAttributes="Bold"/>
+
+        <!-- Примерные координаты -->
+        <Label x:Name="CoarseCoordsLabel" Text="Примерные: Нажмите обновить" FontSize="16"/>
+
+        <!-- Точные координаты -->
+        <Label x:Name="FineCoordsLabel" Text="Точные: Нажмите обновить" FontSize="16"/>
+
+        <Button Text="Обновить данные GPS" Clicked="OnCheckGpsClicked" Margin="0,20,0,0"/>
+
+    </VerticalStackLayout>
 </ContentPage>
