@@ -117,8 +117,9 @@ public partial class MainPage : ContentPage
             var timeDeltaInSeconds = (newLocation.Timestamp - lastPoint.Timestamp).TotalSeconds;
 
             // Если расстояние меньше 3 метров, считаем, что пользователь стоит на месте.
+            // Или если каким-то образом сняло 2 точки
             // Игнорируем микро-колебания, чтобы трек не превращался в "паутину" на стоянках.
-            if (distanceInMeters < 3.0)
+            if (distanceInMeters < 3.0 || timeDeltaInSeconds == 0)
             {
                 _discardedCount++;
                 return;
