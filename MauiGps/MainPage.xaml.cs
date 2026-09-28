@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Maui.Storage;
-using Microsoft.Maui.Devices.Sensors;
 using System.Globalization;
 using System.Text;
+
 namespace MauiGps;
 
 public partial class MainPage : ContentPage
@@ -9,6 +9,7 @@ public partial class MainPage : ContentPage
     int count = 0;
     private bool _isRecording = false;
     private List<Location> _trackPoints = new();
+    private int _discardedCount = 0;
 
     public MainPage()
     {
@@ -24,18 +25,33 @@ public partial class MainPage : ContentPage
         if (!_isRecording)
         {
             // Начинаем запись
-            bool hasPermission = await CheckGpsPermissionAsync();
+            var hasPermission = await MainPage.CheckGpsPermissionAsync();
             if (!hasPermission)
             {
                 await DisplayAlertAsync("Ошибка", "Нет разрешений на использование GPS", "OK");
                 return;
             }
 
+#if ANDROID
+            var bgStatus = await Permissions.CheckStatusAsync<Permissions.LocationAlways>();
+            if (bgStatus != PermissionStatus.Granted)
+            {
+                await Permissions.RequestAsync<Permissions.LocationAlways>();
+            }
+#endif
+
             _trackPoints.Clear();
             _isRecording = true;
+            _discardedCount = 0;
             TrackButton.Text = "Остановить и сохранить трек";
             TrackButton.BackgroundColor = Colors.Red;
             StatusLabel.Text = "Статус: Запись трека...";
+
+            // запуск фоновой службы на android
+#if ANDROID
+            var intent = new Android.Content.Intent(Android.App.Application.Context, typeof(GpsService));
+            Android.App.Application.Context.StartForegroundService(intent);
+#endif
 
             // Подписываемся на обновление координат в реальном времени
             Geolocation.Default.LocationChanged += OnLocationChanged;
@@ -55,10 +71,16 @@ public partial class MainPage : ContentPage
             Geolocation.Default.LocationChanged -= OnLocationChanged;
             Geolocation.Default.StopListeningForeground();
 
+            // остановка фоновой службы на android
+#if ANDROID
+            var intent = new Android.Content.Intent(Android.App.Application.Context, typeof(GpsService));
+            Android.App.Application.Context.StopService(intent);
+#endif
+
             // Сохраняем файл gpx
             if (_trackPoints.Count > 0)
             {
-                string filePath = await SaveGpxFileAsync(_trackPoints);
+                var filePath = await MainPage.SaveGpxFileAsync(_trackPoints);
                 await DisplayAlertAsync("Успех", $"Трек сохранен!\nКоличество точек: {_trackPoints.Count}\nФайл: {filePath}", "OK");
             }
             else
@@ -75,43 +97,79 @@ public partial class MainPage : ContentPage
     /// <param name="e"></param>
     private void OnLocationChanged(object? sender, GeolocationLocationChangedEventArgs e)
     {
-        if (e.Location != null)
-        {
-            // Проверяем: если это не первая точка, сравниваем её с предыдущей
-            if (_trackPoints.Count > 0)
-            {
-                var lastPoint = _trackPoints[^1];
+        // Если точность хуже 35 метров, GPS-приемник «потерялся», точку в трек не берем.
+        if (e.Location == null ||
+            (e.Location.Accuracy.HasValue && e.Location.Accuracy.Value > 35))
+            return;
+        
+        var newLocation = e.Location;
 
-                // Если координаты абсолютно те же (устройство не сдвинулось), игнорируем точку
-                if (Math.Abs(lastPoint.Latitude - e.Location.Latitude) < 0.00001 &&
-                    Math.Abs(lastPoint.Longitude - e.Location.Longitude) < 0.00001)
+        // Проверяем: если это не первая точка, сравниваем её с предыдущей
+        if (_trackPoints.Count > 0)
+        {
+            var lastPoint = _trackPoints[^1];
+
+            // Вычисляем расстояние между прошлой и новой точкой (в километрах)
+            // и переводим в метры
+            var distanceInMeters = Location.CalculateDistance(lastPoint, newLocation, DistanceUnits.Kilometers) * 1000;
+
+            // Вычисляем разницу во времени между точками (в секундах)
+            var timeDeltaInSeconds = (newLocation.Timestamp - lastPoint.Timestamp).TotalSeconds;
+
+            // Если расстояние меньше 3 метров, считаем, что пользователь стоит на месте.
+            // Игнорируем микро-колебания, чтобы трек не превращался в "паутину" на стоянках.
+            if (distanceInMeters < 3.0)
+            {
+                _discardedCount++;
+                return;
+            }
+
+            // фильтр отскоков (Реалистичная скорость):
+            if (timeDeltaInSeconds > 0)
+            {
+                // Вычисляем скорость перемещения между этими двумя точками (в м/с)
+                var calculatedSpeedMetresPerSecond = distanceInMeters / timeDeltaInSeconds;
+
+                // Переводим в км/ч для удобства понимания (1 м/с = 3.6 км/ч)
+                var calculatedSpeedKmH = calculatedSpeedMetresPerSecond * 3.6;
+
+                // Безопасно считываем значение из интерфейса. 
+                // Если поле пустое или там некорректные символы, используем 45.0 км/ч по умолчанию.
+                if (!double.TryParse(MaxSpeedEntry.Text, NumberStyles.Any,
+                                      CultureInfo.InvariantCulture, out double maxPossibleSpeed))
+                    maxPossibleSpeed = 45.0;
+
+                if (calculatedSpeedKmH > maxPossibleSpeed)
                 {
+                    // Точка совершила нереалистичный прыжок во времени и пространстве — это отскок!
+                    System.Diagnostics.Debug.WriteLine($"[GPS Filter] Отскок заблокирован! Скорость: {calculatedSpeedKmH:F1} км/ч");
+                    _discardedCount++;
                     return;
                 }
             }
-
-            _trackPoints.Add(e.Location);
-
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                CurrentCoordsLabel.Text = $"Текущие: {e.Location.Latitude:F6}, {e.Location.Longitude:F6} (Точек: {_trackPoints.Count})";
-                // Проверяем, вернул ли GPS-датчик высоту
-                if (e.Location.Altitude.HasValue)
-                {
-                    AltitudeLabel.Text = $"Высота: {e.Location.Altitude.Value:F1} м";
-                }
-                else
-                {
-                    AltitudeLabel.Text = "Высота: определение...";
-                }
-            });
         }
+
+        _trackPoints.Add(e.Location);
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            CurrentCoordsLabel.Text = $"Текущие: {e.Location.Latitude:F6}, {e.Location.Longitude:F6} (Точек: {_trackPoints.Count}, отфильтровано: {_discardedCount})";
+            // Проверяем, вернул ли GPS-датчик высоту
+            if (e.Location.Altitude.HasValue)
+            {
+                AltitudeLabel.Text = $"Высота: {e.Location.Altitude.Value:F1} м";
+            }
+            else
+            {
+                AltitudeLabel.Text = "Высота: определение...";
+            }
+        });
     }
     /// <summary>
     /// Проверка прав на получение информации GPS
     /// </summary>
     /// <returns></returns>
-    private async Task<bool> CheckGpsPermissionAsync()
+    private static async Task<bool> CheckGpsPermissionAsync()
     {
         var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         if (status != PermissionStatus.Granted)
@@ -125,7 +183,7 @@ public partial class MainPage : ContentPage
     /// </summary>
     /// <param name="points"></param>
     /// <returns></returns>
-    private async Task<string> SaveGpxFileAsync(List<Location> points)
+    private static async Task<string> SaveGpxFileAsync(List<Location> points)
     {
         var gpxBuilder = new StringBuilder();
 
@@ -141,17 +199,24 @@ public partial class MainPage : ContentPage
 
         foreach (var p in points)
         {
-            string lat = p.Latitude.ToString(CultureInfo.InvariantCulture);
-            string lon = p.Longitude.ToString(CultureInfo.InvariantCulture);
-            string time = p.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ");
+            var lat = p.Latitude.ToString(CultureInfo.InvariantCulture);
+            var lon = p.Longitude.ToString(CultureInfo.InvariantCulture);
+            var time = p.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ");
 
             gpxBuilder.AppendLine($"      <trkpt lat=\"{lat}\" lon=\"{lon}\">");
             if (p.Altitude.HasValue)
             {
-                string ele = p.Altitude.Value.ToString(CultureInfo.InvariantCulture);
+                var ele = p.Altitude.Value.ToString(CultureInfo.InvariantCulture);
                 gpxBuilder.AppendLine($"        <ele>{ele}</ele>");
             }
             gpxBuilder.AppendLine($"        <time>{time}</time>");
+            if (p.Accuracy.HasValue)
+            {
+                // Переводим метры в коэффициент HDOP (минимум 1.0)
+                var hdopCalc = Math.Max(1.0, p.Accuracy.Value / 5.0);
+                var hdop = hdopCalc.ToString("F2", CultureInfo.InvariantCulture);
+                gpxBuilder.AppendLine($"        <hdop>{hdop}</hdop>");
+            }
             gpxBuilder.AppendLine("      </trkpt>");
         }
 
@@ -197,7 +262,7 @@ public partial class MainPage : ContentPage
     private async void OnCheckGpsClicked(object sender, EventArgs e)
     {
         // 1. Проверяем статус GPS (разрешения и включен ли датчик)
-        bool isGpsEnabled = await CheckGpsStatusAsync();
+        var isGpsEnabled = await CheckGpsStatusAsync();
         StatusLabel.Text = isGpsEnabled ? "Статус: GPS Доступен" : "Статус: GPS Отключен или нет разрешений";
 
         if (!isGpsEnabled) return;

@@ -47,8 +47,16 @@
 
         <Button Text="Обновить данные GPS" Clicked="OnCheckGpsClicked" Margin="0,20,0,0"/>
 
-        
-        
+        <HorizontalStackLayout Spacing="10" HorizontalOptions="Center" VerticalOptions="Center">
+            <Label Text="Лимит скорости для фильтра (км/ч):" VerticalOptions="Center" FontSize="14"/>
+            <Entry x:Name="MaxSpeedEntry" 
+           Text="45" 
+           Keyboard="Numeric" 
+           WidthRequest="60" 
+           HorizontalTextAlignment="Center"
+           VerticalOptions="Center"/>
+        </HorizontalStackLayout>
+
         <!-- текущие координаты -->
         <Label x:Name="CurrentCoordsLabel" Text="Текущие координаты отобразятся при записи" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
         <!-- Высота -->
