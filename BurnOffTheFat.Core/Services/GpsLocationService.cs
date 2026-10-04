@@ -12,6 +12,10 @@ namespace BurnOffTheFat.Core.Services;
 /// </summary>
 public class GpsLocationService : INotifyPropertyChanged
 {
+    /// <summary>
+    /// Интервал получения точек трека
+    /// </summary>
+    const int GetLocationInterval = 2;
     #region Привязки
     private double _maxSpeedKmH = LocationUtils.DefaultMaxSpeedKmH;
     /// <summary>Максимально допустимая скорость между точками (км/ч).</summary>
@@ -40,6 +44,7 @@ public class GpsLocationService : INotifyPropertyChanged
     /// <summary>
     /// Статус записи
     /// </summary>
+    /// TODO: переработать в Enum
     public string Status
     {
         get => _status;
@@ -49,6 +54,7 @@ public class GpsLocationService : INotifyPropertyChanged
     /// <summary>
     /// Текущие координаты
     /// </summary>
+    /// TODO: переработать тип в Location
     public string CurrentCoords
     {
         get => _currentCoords;
@@ -136,7 +142,7 @@ public class GpsLocationService : INotifyPropertyChanged
         {
             var request = new GeolocationListeningRequest(
                 GeolocationAccuracy.High,
-                TimeSpan.FromSeconds(2));//TODO: в константы
+                TimeSpan.FromSeconds(GetLocationInterval));
 
             await Geolocation.Default.StartListeningForegroundAsync(request);
             return true;
@@ -227,10 +233,11 @@ public class GpsLocationService : INotifyPropertyChanged
         return status == PermissionStatus.Granted;
     }
 
-    
-
-    // ---------- Обработчики ----------
-
+    /// <summary>
+    /// Обработчик события получения точки от GPS
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void OnLocationChanged(object? sender, GeolocationLocationChangedEventArgs e)
     {
         if (e.Location == null) return;
@@ -247,16 +254,12 @@ public class GpsLocationService : INotifyPropertyChanged
         _trackPoints.Add(e.Location);
         PointCount = _trackPoints.Count;
 
-        // Обновление UI-свойств должно происходить в UI-потоке
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            CurrentCoords = $"Текущие: {LocationUtils.FormatCoords(e.Location)} " +
-                            $"(Точек: {PointCount}, отфильтровано: {DiscardedCount})";
-
-            Altitude = e.Location.Altitude.HasValue
-                ? $"Высота: {e.Location.Altitude.Value:F1} м"
-                : "Высота: определение...";
-        });
+        //TODO: Вынести из логики формирование строки, хранить только текущую координату и статистику записи
+        CurrentCoords = $"Текущие: {LocationUtils.FormatCoords(e.Location)} " +
+                        $"(Точек: {PointCount}, отфильтровано: {DiscardedCount})";
+        Altitude = e.Location.Altitude.HasValue
+            ? $"Высота: {e.Location.Altitude.Value:F1} м"
+            : "Высота: определение...";
     }
 
     /// <summary>
@@ -288,11 +291,21 @@ public class GpsLocationService : INotifyPropertyChanged
 
     private record SaveResult(bool Success, string? FilePath, string Message);
 
-    // ---------- INotifyPropertyChanged ----------
-
+    #region INotifyPropertyChanged
+    /// <summary>
+    /// Генерация события изменения значения поля
+    /// </summary>
+    /// <param name="name"></param>
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
+    /// <summary>
+    /// Установка значения поля с генерацией события его изменения для привязки
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="field"></param>
+    /// <param name="value"></param>
+    /// <param name="name"></param>
+    /// <returns></returns>
     protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return false;
@@ -300,5 +313,6 @@ public class GpsLocationService : INotifyPropertyChanged
         OnPropertyChanged(name);
         return true;
     }
+    #endregion
 
 }
