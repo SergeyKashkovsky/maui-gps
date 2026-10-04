@@ -53,10 +53,7 @@
 
 	<ItemGroup>
 		<!-- App Icon-->
-    <MauiIcon Include="Resources\AppIcon\appiconfg.svg"
-             ForegroundFile="Resources\AppIcon\appicon.svg"
-             ForegroundScale="0.50"
-             Color="#183E0C" />
+    <MauiIcon Include="Resources\AppIcon\appiconfg.svg" ForegroundFile="Resources\AppIcon\appicon.svg" ForegroundScale="0.50" Color="#183E0C" />
 
 		<!-- Splash Screen -->
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
@@ -75,7 +72,11 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Maui" Version="15.0.1" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.12" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\BurnOffTheFat.Core\BurnOffTheFat.Core.csproj" />
 	</ItemGroup>
 
 </Project>
