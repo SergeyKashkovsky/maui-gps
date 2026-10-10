@@ -1,6 +1,7 @@
 <Solution>
+  <Project Path="../BurnOffTheFat.Common/BurnOffTheFat.Common.csproj" Id="07fa9218-c25a-480a-8f3f-16c394893fcd" />
   <Project Path="../BurnOffTheFat.Core/BurnOffTheFat.Core.csproj" Id="c112b456-2e1c-4655-9afa-abd46d98a79a" />
   <Project Path="MauiGps.csproj">
-    <Deploy Solution="Release|*" />
+    <Deploy />
   </Project>
 </Solution>

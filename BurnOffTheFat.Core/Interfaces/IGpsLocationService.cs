@@ -15,6 +15,10 @@ public interface IGpsLocationService
     /// </summary>
     bool IsRecording { get; }
     /// <summary>
+    /// Коллекция собранных точек
+    /// </summary>
+    List<Location> Points { get; }
+    /// <summary>
     /// Количество записанных точек
     /// </summary>
     int PointCount { get; }
@@ -31,10 +35,6 @@ public interface IGpsLocationService
     /// Событие получения новой валидной точки местоположения
     /// </summary>
     event EventHandler<LocationPointEventArgs>? LocationReceived;
-    /// <summary>
-    /// Событие сохранения трека TODO: в дальнейшем нужно вынести в отдельный интерфейс - с файлами трека должна работать другая сущнось. Должно быть так: сервер местоположения из коллекции точек и других данных готовит коллекцию точек для файла трека, передает для сохранения в файловый менеджер
-    /// </summary>
-    event EventHandler<TrackSavedEventArgs>? TrackSaved;
     
     /// <summary>
     /// Запуск прослушивания событий GPS для определения необходимых параметров для запуска трека

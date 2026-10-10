@@ -1,4 +1,4 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Core.Models;
 
 namespace BurnOffTheFat.Core.Interfaces;
 /// <summary>

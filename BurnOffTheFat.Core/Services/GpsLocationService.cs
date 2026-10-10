@@ -17,6 +17,8 @@ public class GpsLocationService : IGpsLocationService
     const int GetLocationInterval = 2;
     private readonly List<Location> _trackPoints = new();
     /// <inheritdoc/>
+    public List<Location> Points => _trackPoints;
+    /// <inheritdoc/>
     public double MaxSpeedKmH { get; set; } = LocationUtils.DefaultMaxSpeedKmH;
     
     private bool _isListening;
@@ -34,9 +36,6 @@ public class GpsLocationService : IGpsLocationService
     public int DiscardedCount { get; private set; }
     /// <inheritdoc/>
     public event EventHandler<LocationPointEventArgs>? LocationReceived;
-    /// <inheritdoc/>
-    public event EventHandler<TrackSavedEventArgs>? TrackSaved;
-
     /// <inheritdoc/>
     public async Task StartListenAsync()
     {
@@ -134,15 +133,7 @@ public class GpsLocationService : IGpsLocationService
 #if ANDROID
         StopAndroidGpsService();
 #endif
-
-        if (_trackPoints.Count == 0)
-        {
-            TrackSaved?.Invoke(this, new TrackSavedEventArgs("Не удалось записать ни одной точки. Файл не создан."));
-            return;
-        }
         //TODO: оптимизация трека
-        var result = await SaveGpxFileAsync(_trackPoints);
-        TrackSaved?.Invoke(this, new TrackSavedEventArgs(_trackPoints.Count, result));
     }
 
     /// <summary>
@@ -207,33 +198,5 @@ public class GpsLocationService : IGpsLocationService
             DiscardedCount = DiscardedCount
         });
     }
-
-    /// <summary>
-    /// Сохранение файла в память
-    /// </summary>
-    /// <param name="points"></param>
-    /// <returns></returns>
-    private static async Task<FileSaveResult> SaveGpxFileAsync(List<Location> points)
-    {
-        var gpx = LocationUtils.BuildGpx(points);
-        var utf8NoBom = new UTF8Encoding(false);
-        var bytes = utf8NoBom.GetBytes(gpx);
-
-        using var stream = new MemoryStream(bytes);
-        var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}.gpx";
-
-        try
-        {
-            var result = await FileSaver.Default.SaveAsync(fileName, stream, cancellationToken: default);
-            return result.IsSuccessful
-                ? new FileSaveResult(true, result.FilePath, "OK")
-                : new FileSaveResult(false, null, "Сохранение отменено пользователем");
-        }
-        catch (Exception ex)
-        {
-            return new FileSaveResult(false, null, $"Ошибка при сохранении: {ex.Message}");
-        }
-    }
-
 
 }

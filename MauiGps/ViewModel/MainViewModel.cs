@@ -1,5 +1,5 @@
-﻿using BurnOffTheFat.Core.Events;
-using BurnOffTheFat.Core.Interfaces;
+﻿using BurnOffTheFat.Core.Interfaces;
+using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Services;
 using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,12 +10,13 @@ namespace MauiGps.ViewModel;
 public partial class MainViewModel : ObservableObject
 {
     private readonly IGpsLocationService _gps;
-    public MainViewModel(IGpsLocationService gps)
+    private readonly IGpxFileService _gpxFileService;
+    public MainViewModel(IGpsLocationService gps, IGpxFileService fileService)
     {
         _gps = gps;
+        _gpxFileService = fileService;
 
         _gps.LocationReceived += OnLocationReceived;
-        _gps.TrackSaved += OnTrackSaved;
     }
 
     [ObservableProperty]
@@ -96,6 +97,14 @@ public partial class MainViewModel : ObservableObject
         {
             Status = "Статус: Сохранение...";
             await _gps.StopRecordingAsync();
+            var gpx = LocationUtils.BuildGpx(_gps.Points);
+            var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}.gpx";
+            var fileResult = await _gpxFileService.CreateGpxFromTextAsync(fileName, gpx);
+            if (fileResult.Success)
+                await ShowAlertAsync("Успех",
+                    $"Трек сохранен!\nКоличество точек: {_gps.PointCount}\nФайл: {fileResult.FilePath}");
+            else
+                await ShowAlertAsync("Внимание", fileResult.Message);
 
             IsRecording = false;
             Status = "Статус: Готов к записи";
@@ -141,24 +150,9 @@ public partial class MainViewModel : ObservableObject
             ?? throw new InvalidOperationException("Нет активной страницы");
         await page.DisplayAlertAsync(title, message, cancel);
     }
-    /// <summary>
-    /// Отображение диалогового окна с подтверждением действия
-    /// </summary>
-    /// <param name="title"></param>
-    /// <param name="message"></param>
-    /// <param name="accept"></param>
-    /// <param name="cancel"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
-    private async Task<bool> ShowConfirmAsync(string title, string message, string accept, string cancel)
-    {
-        var page = Application.Current?.Windows[0].Page
-            ?? throw new InvalidOperationException("Нет активной страницы");
-        return await page.DisplayAlertAsync(title, message, accept, cancel);
-    }
 
     /// <summary>
-    /// Запустить диалог переключения режима энергосбережения, если оно ограничивает работу приложения в фоновом режиме
+    /// Запустить диалог переключения режима энергосбережения, если оно ограничивает работу приложения в фоновом режиме. TODO: вынести в отдельный сервис
     /// </summary>
     public static void CheckAndRequestBatteryOptimizations()
     {
@@ -200,22 +194,5 @@ public partial class MainViewModel : ObservableObject
                 ? $"Высота: {e.Location.Altitude.Value:F1} м"
                 : "Высота: определение...";
         });
-    }
-    /// <summary>
-    /// Обработчик события сохранения файла
-    /// </summary>
-    /// <param name="sender"></param>
-    /// <param name="e"></param>
-    private async void OnTrackSaved(object? sender, TrackSavedEventArgs e)
-    {
-        if (e.Success)
-        {
-            await ShowAlertAsync("Успех",
-                $"Трек сохранен!\nКоличество точек: {e.PointCount}\nФайл: {e.FilePath}");
-        }
-        else
-        {
-            await ShowAlertAsync("Внимание", e.Message);
-        }
     }
 }

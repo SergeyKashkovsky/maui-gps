@@ -1,7 +1,9 @@
-﻿namespace BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Core.Models;
+
+namespace BurnOffTheFat.Core.Events;
 
 /// <summary>
-/// Аргументы события завершения записи трека.
+/// Аргументы события завершения записи трека. TODO: возможно, не нужно
 /// </summary>
 public class TrackSavedEventArgs : EventArgs
 {
@@ -43,10 +45,3 @@ public class TrackSavedEventArgs : EventArgs
         Message = errorMessage;
     }
 }
-/// <summary>
-/// Результат сохранения файла
-/// </summary>
-/// <param name="Success"></param>
-/// <param name="FilePath"></param>
-/// <param name="Message"></param>
-public record FileSaveResult(bool Success, string? FilePath, string Message);
