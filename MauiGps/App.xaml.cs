@@ -1,17 +1,18 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿namespace MauiGps;
 
-namespace MauiGps
+public partial class App : Application
 {
-    public partial class App : Application
+    private readonly IServiceProvider _services;
+    public App(IServiceProvider services)
     {
-        public App()
-        {
-            InitializeComponent();
-        }
-
-        protected override Window CreateWindow(IActivationState? activationState)
-        {
-            return new Window(new AppShell());
-        }
+        InitializeComponent();
+        _services = services;
+    }
+    /// <inheritdoc/>
+    /// <remarks>Через систему DI получаем главную страницу со внедренной зависимостью от представления</remarks>
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        var page = _services.GetRequiredService<MainPage>();
+        return new Window(page);
     }
 }
