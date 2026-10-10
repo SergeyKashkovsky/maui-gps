@@ -72,8 +72,9 @@ public partial class MainViewModel : ObservableObject
     {
         if (!IsRecording)
         {
-            CheckAndRequestBatteryOptimizations();
-
+#if ANDROID
+            AndriodPermissionService.CheckAndRequestBatteryOptimizations();
+#endif
             try
             {
                 var started = await _gps.StartRecordingAsync();
@@ -151,31 +152,7 @@ public partial class MainViewModel : ObservableObject
         await page.DisplayAlertAsync(title, message, cancel);
     }
 
-    /// <summary>
-    /// Запустить диалог переключения режима энергосбережения, если оно ограничивает работу приложения в фоновом режиме. TODO: вынести в отдельный сервис
-    /// </summary>
-    public static void CheckAndRequestBatteryOptimizations()
-    {
-#if ANDROID
-        var activity = Platform.CurrentActivity;
-        if (activity == null) return;
-
-        var powerManager = (Android.OS.PowerManager)activity.GetSystemService(Android.Content.Context.PowerService);
-
-        string packageName = activity.PackageName;
-
-        if (powerManager != null && !powerManager.IsIgnoringBatteryOptimizations(packageName))
-        {
-            Android.Content.Intent intent = new Android.Content.Intent();
-
-            intent.SetAction(Android.Provider.Settings.ActionRequestIgnoreBatteryOptimizations);
-            intent.SetData(Android.Net.Uri.Parse($"package:{packageName}"));
-
-            // Запускаем Intent из контекста текущего окна приложения
-            activity.StartActivity(intent);
-        }
-#endif
-    }
+    
     /// <summary>
     /// Обработчик события добавления точки в трек
     /// </summary>

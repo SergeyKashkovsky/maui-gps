@@ -54,20 +54,8 @@ public class GpsLocationService : IGpsLocationService
             return false;
 
 #if ANDROID
-        await RequestBackgroundLocationPermissionAsync();
-        // запуск фоновой службы на android
-        var context = Platform.AppContext;
-        var intent = new Android.Content.Intent();
-        intent.SetClassName(context.PackageName, "burnoffthefat.GpsService");
-
-        if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.O)
-        {
-            context.StartForegroundService(intent);
-        }
-        else
-        {
-            context.StartService(intent);
-        }
+        await AndriodPermissionService.RequestBackgroundLocationPermissionAsync();
+        AndriodPermissionService.StartAndroidGpsService();
 #endif
 
         _trackPoints.Clear();
@@ -90,33 +78,15 @@ public class GpsLocationService : IGpsLocationService
         {
             Geolocation.Default.LocationChanged -= OnLocationChanged;
 #if ANDROID
-            StopAndroidGpsService();
+            AndriodPermissionService.StopAndroidGpsService();
 #endif
             return false;
         }
     }
 
 #if ANDROID
-    /// <summary>
-    /// Запрос работы приложения как фоновой службы
-    /// </summary>
-    /// <returns></returns>
-    private static async Task RequestBackgroundLocationPermissionAsync()
-    {
-        var bgStatus = await Permissions.CheckStatusAsync<Permissions.LocationAlways>();
-        if (bgStatus != PermissionStatus.Granted)
-            await Permissions.RequestAsync<Permissions.LocationAlways>();
-    }
-    /// <summary>
-    /// Остановка фоновой службы уведомлений
-    /// </summary>
-    private void StopAndroidGpsService()
-    {
-        var context = Platform.AppContext;
-        var intent = new Android.Content.Intent();
-        intent.SetClassName(context.PackageName, "burnoffthefat.GpsService");
-        Android.App.Application.Context.StopService(intent);
-    }
+    
+    
 
 #endif
 
@@ -131,7 +101,7 @@ public class GpsLocationService : IGpsLocationService
         Geolocation.Default.LocationChanged -= OnLocationChanged;
         Geolocation.Default.StopListeningForeground();
 #if ANDROID
-        StopAndroidGpsService();
+        AndriodPermissionService.StopAndroidGpsService();
 #endif
         //TODO: оптимизация трека
     }
