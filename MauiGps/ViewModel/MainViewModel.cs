@@ -1,5 +1,5 @@
-﻿using BurnOffTheFat.Core.Interfaces;
-using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Core.Events;
+using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
 using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -18,6 +18,8 @@ public partial class MainViewModel : ObservableObject
 
         _gps.LocationReceived += OnLocationReceived;
     }
+    [ObservableProperty]
+    private string _gpsAccuracyText = "Погрешность GPS: Определение...";
 
     [ObservableProperty]
     private string _status = "Статус: Готов к записи";
@@ -72,9 +74,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (!IsRecording)
         {
-#if ANDROID
-            AndriodPermissionService.CheckAndRequestBatteryOptimizations();
-#endif
+
             try
             {
                 var started = await _gps.StartRecordingAsync();
@@ -118,7 +118,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task CheckGpsAsync()
     {
-        var ok = await GpsLocationService.CheckGpsPermissionAsync();
+        var ok = await GpsLocationService.CheckAndRequestGpsPermissionAsync();
         if (!ok)
         {
             CoarseCoords = "Примерные: Нет разрешений";
@@ -137,6 +137,10 @@ public partial class MainViewModel : ObservableObject
             : "Точные: Ошибка получения";
     }
 
+    /// <summary>
+    /// Загрузка трека из файла
+    /// </summary>
+    /// <returns></returns>
     [RelayCommand]
     private async Task LoadTrackAsync()
     {
@@ -201,6 +205,19 @@ public partial class MainViewModel : ObservableObject
             await ShowAlertAsync("Ошибка", $"Не удалось загрузить файл: {ex.Message}");
         }
     }
+    /// <summary>
+    /// Инициализация модели (запуск слушателоя GPS)
+    /// </summary>
+    /// <returns></returns>
+    [RelayCommand]
+    private async Task InitializeAsync()
+    {
+        Status = "Статус: Поиск спутников...";
+#if ANDROID
+        AndriodPermissionService.CheckAndRequestBatteryOptimizations();
+#endif
+        await _gps.StartListenAsync();
+    }
 
     /// <summary>
     /// Отображение диалогового окна с указанием предупреждения
@@ -235,6 +252,7 @@ public partial class MainViewModel : ObservableObject
             Altitude = e.Location.Altitude.HasValue
                 ? $"Высота: {e.Location.Altitude.Value:F1} м"
                 : "Высота: определение...";
+            GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
         });
     }
 }
