@@ -137,6 +137,71 @@ public partial class MainViewModel : ObservableObject
             : "Точные: Ошибка получения";
     }
 
+    [RelayCommand]
+    private async Task LoadTrackAsync()
+    {
+        try
+        {
+            // 1. Настраиваем фильтр для расширения .gpx
+            var customFileType = new FilePickerFileType(
+                new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                { DevicePlatform.Android, new[] { "application/gpx+xml", "application/xml", "*/*" } }, // На Android mime-типы бывают капризны
+                { DevicePlatform.iOS, new[] { "com.topografix.gpx" } },
+                { DevicePlatform.WinUI, new[] { ".gpx" } }
+                });
+
+            var options = new PickOptions
+            {
+                PickerTitle = "Выберите файл GPX трека",
+                FileTypes = customFileType
+            };
+
+            // 2. Открываем системное окно выбора файла
+            var result = await FilePicker.Default.PickAsync(options);
+            if (result == null) return; // Пользователь отменил выбор
+
+            // Проверяем расширение файла на всякий случай (особенно важно для Android при выборе */*)
+            if (!result.FileName.EndsWith(".gpx", StringComparison.OrdinalIgnoreCase))
+            {
+                await ShowAlertAsync("Внимание", "Пожалуйста, выберите файл с расширением .gpx");
+                return;
+            }
+
+            // 3. Открываем поток файла и передаем в наш сервис
+            using var stream = await result.OpenReadAsync();
+
+            // Вызываем чтение (убедитесь, что _gpxFileService внедрен через конструктор вашей ViewModel)
+            List<Location> loadedPoints = await _gpxFileService.ReadGpxFile(stream);
+
+            if (loadedPoints.Count == 0)
+            {
+                await ShowAlertAsync("Внимание", "Выбранный файл пуст или имеет некорректный формат.");
+                return;
+            }
+
+            // 4. Имитируем отображение данных, как будто трек только что записан
+            var lastPoint = loadedPoints[^1]; // Берем последнюю точку трека
+
+            Status = $"Статус: Трек успешно загружен";
+
+            // Форматируем вывод координат через ваш LocationUtils
+            CurrentCoords = $"Текущие: {LocationUtils.FormatCoords(lastPoint)} (Точек загружено: {loadedPoints.Count})";
+
+            Altitude = lastPoint.Altitude.HasValue
+                ? $"Высота: {lastPoint.Altitude.Value:F1} м"
+                : "Высота: нет данных в файле";
+
+            // Сбрасываем старые значения тестов, если они выводились
+            CoarseCoords = "Примерные: Нажмите обновить";
+            FineCoords = "Точные: Нажмите обновить";
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Ошибка", $"Не удалось загрузить файл: {ex.Message}");
+        }
+    }
+
     /// <summary>
     /// Отображение диалогового окна с указанием предупреждения
     /// </summary>
