@@ -56,4 +56,37 @@ public class GpsService : Service
             manager?.CreateNotificationChannel(channel);
         }
     }
+
+    /// <summary>
+    /// Вызывается операционной системой Android, когда пользователь смахивает приложение из списка "Недавние"
+    /// </summary>
+    public override void OnTaskRemoved(Intent? rootIntent)
+    {
+        System.Diagnostics.Debug.WriteLine("[GpsService] Приложение смахнули из списка недавних. Останавливаем службу...");
+
+        try
+        {
+            // 1. Снимаем статус Foreground и удаляем уведомление
+            if (Build.VERSION.SdkInt >= BuildVersionCodes.N)
+            {
+                StopForeground(StopForegroundFlags.Remove);
+            }
+            else
+            {
+                StopForeground(true);
+            }
+
+            // 2. Останавливаем саму службу
+            StopSelf();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Ошибка при остановке службы в OnTaskRemoved: {ex.Message}");
+        }
+
+        // 3. Полностью завершаем процесс приложения, чтобы в памяти не висели остатки .NET рантайма
+        Android.OS.Process.KillProcess(Android.OS.Process.MyPid());
+
+        base.OnTaskRemoved(rootIntent);
+    }
 }

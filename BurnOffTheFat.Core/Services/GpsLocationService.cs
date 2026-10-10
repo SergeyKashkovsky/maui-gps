@@ -7,7 +7,7 @@ namespace BurnOffTheFat.Core.Services;
 /// <summary>
 /// Работаем с гео-локацией, треком и всем, что с этим связано
 /// </summary>
-public class GpsLocationService : IGpsLocationService, IDisposable
+public class GpsLocationService : IGpsLocationService
 {
     /// <summary>
     /// Интервал получения точек трека
@@ -166,7 +166,9 @@ public class GpsLocationService : IGpsLocationService, IDisposable
         });
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// TODO: реализовать метод интерфейса остановки прослушивания
+    /// </summary>
     public void Dispose()
     {
         Geolocation.Default.StopListeningForeground();
