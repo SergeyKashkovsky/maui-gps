@@ -1,47 +1,35 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:core="clr-namespace:BurnOffTheFat.Core.Services;assembly=BurnOffTheFat.Core"
-             x:Class="MauiGps.MainPage">
+             xmlns:vm="clr-namespace:MauiGps.ViewModel;assembly=MauiGps"
+             x:Class="MauiGps.MainPage"
+             x:DataType="vm:MainViewModel">
 
     <VerticalStackLayout Padding="30" Spacing="20"
                          HorizontalOptions="Center" VerticalOptions="Center">
 
-        <!-- Статус GPS -->
         <Label Text="{Binding Status}" FontSize="18" FontAttributes="Bold"/>
+        <Label Text="{Binding CoarseCoords}" FontSize="16"/>
+        <Label Text="{Binding FineCoords}" FontSize="16"/>
 
-        <!-- Примерные координаты -->
-        <Label x:Name="CoarseCoordsLabel" Text="Примерные: Нажмите обновить" FontSize="16"/>
-
-        <!-- Точные координаты -->
-        <Label x:Name="FineCoordsLabel" Text="Точные: Нажмите обновить" FontSize="16"/>
-
-        <Button Text="Обновить данные GPS" Clicked="OnCheckGpsClicked" Margin="0,20,0,0"/>
+        <Button Text="Обновить данные GPS" Command="{Binding CheckGpsCommand}"/>
 
         <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-            <Label Text="Лимит скорости для фильтра (км/ч):" VerticalOptions="Center" FontSize="14"/>
+            <Label Text="Лимит скорости (км/ч):" VerticalOptions="Center"/>
             <Entry Text="{Binding MaxSpeedKmH}"
-                   Keyboard="Numeric"
-                   WidthRequest="60"
-                   HorizontalTextAlignment="Center"
-                   VerticalOptions="Center"/>
+                   Keyboard="Numeric" WidthRequest="60"
+                   HorizontalTextAlignment="Center"/>
         </HorizontalStackLayout>
 
-        <!-- Текущие координаты -->
         <Label Text="{Binding CurrentCoords}" FontSize="14"
                HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
-
-        <!-- Высота -->
         <Label Text="{Binding Altitude}" FontSize="14"
                HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
 
         <Button Text="{Binding TrackButtonText}"
                 BackgroundColor="{Binding TrackButtonColor}"
-                TextColor="White"
-                FontAttributes="Bold"
-                WidthRequest="250"
-                HeightRequest="60"
-                Clicked="OnToggleTrackClicked" />
-
+                Command="{Binding ToggleTrackCommand}"
+                TextColor="White" FontAttributes="Bold"
+                WidthRequest="250" HeightRequest="60"/>
     </VerticalStackLayout>
 </ContentPage>

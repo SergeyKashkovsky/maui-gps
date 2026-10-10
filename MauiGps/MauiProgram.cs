@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using CommunityToolkit.Maui;
+﻿using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
+using CommunityToolkit.Maui;
+using MauiGps.ViewModel;
+using Microsoft.Extensions.Logging;
 
 namespace MauiGps
 {
@@ -15,9 +17,14 @@ namespace MauiGps
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             })
                 .UseMauiCommunityToolkit()
-                .Services.AddSingleton<GpsLocationService>();
+                .Services
+                    .AddSingleton<IGpsLocationService, GpsLocationService>()
+                    .AddSingleton<IGpxFileService, GpxFileService>()
+                    .AddSingleton<MainViewModel>()
+                    .AddSingleton<MainPage>();
+
 #if DEBUG
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
             return builder.Build();
         }
