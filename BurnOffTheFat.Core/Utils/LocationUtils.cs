@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text;
+using System.Xml.Linq;
 
 namespace BurnOffTheFat.Core.Utils;
 
@@ -110,5 +111,49 @@ public static class LocationUtils
         sb.AppendLine("  </trk>");
         sb.AppendLine("</gpx>");
         return sb.ToString();
+    }
+    /// <summary>
+    /// Читаем документ GPX-файла
+    /// </summary>
+    /// <param name="doc"></param>
+    /// <returns></returns>
+    public static List<Location> ReadGpx(XDocument doc)
+    {
+        var locations = new List<Location>();
+        // В GPX файлах всегда есть пространство имен (Namespace), его важно учитывать при поиске тегов
+        XNamespace ns = doc.Root?.GetDefaultNamespace() ?? "http://topografix.com";
+
+        // Ищем все теги <trkpt> (track point) в документе
+        var trackPoints = doc.Descendants(ns + "trkpt");
+
+        foreach (var pt in trackPoints)
+        {
+            var latAttr = pt.Attribute("lat")?.Value;
+            var lonAttr = pt.Attribute("lon")?.Value;
+
+            if (double.TryParse(latAttr, System.Globalization.CultureInfo.InvariantCulture, out double lat) &&
+                double.TryParse(lonAttr, System.Globalization.CultureInfo.InvariantCulture, out double lon))
+            {
+                var location = new Location(lat, lon);
+
+                // Пытаемся прочитать высоту <ele>, если она есть
+                var eleElem = pt.Element(ns + "ele")?.Value;
+                if (double.TryParse(eleElem, System.Globalization.CultureInfo.InvariantCulture, out double ele))
+                    location.Altitude = ele;
+
+                // Пытаемся прочитать время <time>, если необходимо
+                var timeElem = pt.Element(ns + "time")?.Value;
+                if (DateTime.TryParse(timeElem, out DateTime time))
+                    location.Timestamp = time;
+
+                // Пытаемся прочитать погрешность <hdop>, если необходимо
+                var hdopElem = pt.Element(ns + "hdop")?.Value;
+                if (double.TryParse(hdopElem, CultureInfo.InvariantCulture, out double hdop))
+                    location.Accuracy = hdop * 5.0;
+
+                locations.Add(location);
+            }
+        }
+        return locations;
     }
 }

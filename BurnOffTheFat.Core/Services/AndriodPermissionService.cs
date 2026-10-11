@@ -65,5 +65,15 @@ public static class AndriodPermissionService
         Android.App.Application.Context.StopService(intent);
     }
 #endif
+    /// <summary>
+    /// Проверяет, выдан ли доступ к GPS, если нет, запрашивает.
+    /// </summary>
+    public static async Task<bool> CheckAndRequestGpsPermissionAsync()
+    {
+        var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+        if (status != PermissionStatus.Granted)
+            status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+        return status == PermissionStatus.Granted;
+    }
 
 }

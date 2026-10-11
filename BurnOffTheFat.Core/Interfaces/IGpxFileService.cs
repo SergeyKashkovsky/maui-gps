@@ -13,4 +13,10 @@ public interface IGpxFileService
     /// <param name="content"></param>
     /// <returns></returns>
     Task<FileSaveResult> CreateGpxFromTextAsync(string fileName, string content);
+    /// <summary>
+    /// Чтение файла GPX в массив точек
+    /// </summary>
+    /// <param name="fileName"></param>
+    /// <returns></returns>
+    Task<List<Location>> ReadGpxFile(Stream fileName);
 }
