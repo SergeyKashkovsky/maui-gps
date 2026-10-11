@@ -7,7 +7,7 @@ namespace BurnOffTheFat.Core.Utils;
 public static class LocationUtils
 {
     /// <summary>Максимально допустимая погрешность точки (в метрах).</summary>
-    public const double MaxAccuracyMeters = 35.0;
+    public const double MaxAccuracyMeters = 20.0;
 
     /// <summary>Минимальное расстояние между точками трека (в метрах).</summary>
     public const double MinDistanceMeters = 3.0;
@@ -30,7 +30,7 @@ public static class LocationUtils
     {
         reason = string.Empty;
 
-        // 1. Фильтр по точности
+        // Фильтр по точности
         if (newLocation.Accuracy.HasValue && newLocation.Accuracy.Value > MaxAccuracyMeters)
         {
             reason = $"Точность {newLocation.Accuracy.Value:F1} м > {MaxAccuracyMeters} м";
@@ -39,27 +39,61 @@ public static class LocationUtils
 
         if (lastPoint == null)
             return true;
-
-        // 2. Расстояние между точками
-        var distanceMeters = Location.CalculateDistance(lastPoint, newLocation, DistanceUnits.Kilometers) * 1000;
-        var timeDeltaSeconds = (newLocation.Timestamp - lastPoint.Timestamp).TotalSeconds;
-
-        if (distanceMeters < MinDistanceMeters)
+        
+        // убираем точки из прошлого
+        if(lastPoint.Timestamp > newLocation.Timestamp)
         {
-            reason = $"Стоянка: {distanceMeters:F2} м < {MinDistanceMeters} м";
+            reason = $"Точка из прошлого: {lastPoint.Timestamp:F}(предыдущая точка) > {newLocation.Timestamp:F}(новая точка)";
             return false;
         }
 
-        // 3. Фильтр отскоков по скорости
-        if (timeDeltaSeconds > 0)
+        // убираем, если стоим, или очень медленно двигаемся
+        var distanceMeters = Location.CalculateDistance(lastPoint, newLocation, DistanceUnits.Kilometers) * 1000;
+        if (distanceMeters < MinDistanceMeters)
         {
-            var speedKmH = (distanceMeters / timeDeltaSeconds) * 3.6;
-            if (speedKmH > maxSpeedKmH)
-            {
-                reason = $"Отскок: {speedKmH:F1} км/ч > {maxSpeedKmH:F1} км/ч";
-                return false;
-            }
+            reason = $"Расстояние между точками: {distanceMeters:F2} м < {MinDistanceMeters} м";
+            return false;
         }
+
+        var timeDeltaSeconds = (newLocation.Timestamp - lastPoint.Timestamp).TotalSeconds;
+        // Убираем, если скорость минимально допустима
+        if (timeDeltaSeconds <= 0)
+        {
+            reason = $"Одновременные события или точка из прошлого: {timeDeltaSeconds:F2} с";
+            return false;
+        }
+        var currentSpeedMs = distanceMeters / timeDeltaSeconds;
+        var currentSpeedKmH = currentSpeedMs * 3.6;
+        
+        if (currentSpeedKmH > maxSpeedKmH)
+        {
+            reason = $"Отскок: {currentSpeedKmH:F1} км/ч > {maxSpeedKmH:F1} км/ч";
+            return false;
+        }
+
+        // 4. Расчет ускорения относительно ГЕОМЕТРИЧЕСКОЙ скорости прошлого шага
+        // Мы гарантируем, что в lastValid.Speed записана именно геометрическая скорость,
+        // так как мы сами сохранили её туда на предыдущем шаге (см. конец метода)
+        var previousGeomSpeedMS = lastPoint!.Speed.HasValue ? lastPoint.Speed.Value : 0.0;
+
+        var acceleration = Math.Abs(currentSpeedMs - previousGeomSpeedMS) / timeDeltaSeconds;
+
+        var maxAcceleration = maxSpeedKmH < 15
+            ? 1.2 // ходьба
+            : maxSpeedKmH < 25
+                ? 2.0 // бег
+                : maxSpeedKmH < 45
+                    ? 4.0 // велосипед
+                    : 8.0; // машина
+
+        // 5. Проверка на выброс по ускорению
+        if (acceleration > maxAcceleration)
+        {
+            reason = $"Ускорение: {acceleration:F2} м/с² > {maxAcceleration:F2} км/ч";
+            return false;
+        }
+
+        newLocation.Speed = currentSpeedMs;
 
         return true;
     }
@@ -89,7 +123,7 @@ public static class LocationUtils
         {
             var lat = p.Latitude.ToString(CultureInfo.InvariantCulture);
             var lon = p.Longitude.ToString(CultureInfo.InvariantCulture);
-            var time = p.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.FFFZ");
+            var time = p.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
 
             sb.AppendLine($"      <trkpt lat=\"{lat}\" lon=\"{lon}\">");
             if (p.Altitude.HasValue)

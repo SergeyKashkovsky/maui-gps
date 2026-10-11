@@ -44,6 +44,8 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private double _maxSpeedKmH = LocationUtils.DefaultMaxSpeedKmH;
+    [ObservableProperty]
+    private string _currentSpeedKmHText;
 
     // Свойства, вычисляемые из состояния
     public string TrackButtonText => IsRecording
@@ -253,6 +255,8 @@ public partial class MainViewModel : ObservableObject
                 ? $"Высота: {e.Location.Altitude.Value:F1} м"
                 : "Высота: определение...";
             GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
+            var currentSpeedKmH = e.Location.Speed.HasValue ? e.Location.Speed.Value : 0;
+            CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч";
         });
     }
 }

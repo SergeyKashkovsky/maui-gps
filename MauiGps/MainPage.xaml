@@ -22,6 +22,7 @@
                    Keyboard="Numeric" WidthRequest="60"
                    HorizontalTextAlignment="Center"/>
         </HorizontalStackLayout>
+        <Label Text="{Binding CurrentSpeedKmHText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
         <Label Text="{Binding GpsAccuracyText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
         <Label Text="{Binding CurrentCoords}" FontSize="14"
                HorizontalOptions="Center" HorizontalTextAlignment="Center"/>

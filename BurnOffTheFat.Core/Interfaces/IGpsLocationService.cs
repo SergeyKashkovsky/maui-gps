@@ -30,6 +30,10 @@ public interface IGpsLocationService
     /// Максимальная скорость, определенная для фильтрации выбросов
     /// </summary>
     double MaxSpeedKmH { get; set; }
+    /// <summary>
+    /// Текущая скорость
+    /// </summary>
+    double CurrentSpeedKmH { get; }
 
     /// <summary>
     /// Событие получения новой валидной точки местоположения

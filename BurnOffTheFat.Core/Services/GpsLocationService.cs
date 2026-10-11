@@ -18,7 +18,9 @@ public class GpsLocationService : IGpsLocationService
     public List<Location> Points => _trackPoints;
     /// <inheritdoc/>
     public double MaxSpeedKmH { get; set; } = LocationUtils.DefaultMaxSpeedKmH;
-    
+    /// <inheritdoc/>
+    public double CurrentSpeedKmH { get; private set; } = 0;
+
     private bool _isListening;
     /// <inheritdoc/>
     public bool IsListening => _isListening;
@@ -60,7 +62,7 @@ public class GpsLocationService : IGpsLocationService
     /// Получаем все разрешения на работе в фоне
     /// </summary>
     /// <returns></returns>
-    private async Task<bool> GetPermissions()
+    private static async Task<bool> GetPermissions()
     {
         if (!await AndriodPermissionService.CheckAndRequestGpsPermissionAsync()) return false;
 #if ANDROID
@@ -143,12 +145,25 @@ public class GpsLocationService : IGpsLocationService
             {
                 DiscardedCount++;
                 System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
+                LocationReceived?.Invoke(this, new LocationPointEventArgs
+                {
+                    Location = new()
+                    {
+                        Accuracy = e.Location.Accuracy,
+                        Altitude = lastPoint?.Altitude ?? e.Location.Altitude,
+                        Latitude = lastPoint?.Latitude ?? e.Location.Latitude,
+                        Longitude = lastPoint?.Longitude ?? e.Location.Longitude,
+                        Speed = lastPoint?.Speed,
+                    },
+                    PointCount = _trackPoints.Count,
+                    DiscardedCount = DiscardedCount
+                });
                 return;
-            }
 
+            }
             _trackPoints.Add(e.Location);
         }
-        
+
         LocationReceived?.Invoke(this, new LocationPointEventArgs
         {
             Location = e.Location,
