@@ -1,8 +1,6 @@
 ﻿using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Utils;
-using CommunityToolkit.Maui.Storage;
-using System.Text;
 
 namespace BurnOffTheFat.Core.Services;
 
@@ -39,29 +37,9 @@ public class GpsLocationService : IGpsLocationService
     /// <inheritdoc/>
     public async Task StartListenAsync()
     {
-        // TODO: реализовать предзапуск прослушивания GPS без сбора точек для получения уровня сигнала GPS
-    }
-
-    /// <summary>
-    /// Запускает запись трека.
-    /// </summary>
-    public async Task<bool> StartRecordingAsync()
-    {
-        if (IsRecording) return false;
-
-        var hasPermission = await CheckGpsPermissionAsync();
-        if (!hasPermission)
-            return false;
-
-#if ANDROID
-        await AndriodPermissionService.RequestBackgroundLocationPermissionAsync();
-        AndriodPermissionService.StartAndroidGpsService();
-#endif
-
-        _trackPoints.Clear();
-        DiscardedCount = 0;
-
-        _isRecording = true;
+        if(_isListening) return;
+        
+        if (!await GetPermissions()) return;
 
         Geolocation.Default.LocationChanged += OnLocationChanged;
 
@@ -70,25 +48,44 @@ public class GpsLocationService : IGpsLocationService
             var request = new GeolocationListeningRequest(
                 GeolocationAccuracy.High,
                 TimeSpan.FromSeconds(GetLocationInterval));
-
             await Geolocation.Default.StartListeningForegroundAsync(request);
-            return true;
         }
-        catch (Exception ex)
+        catch
         {
             Geolocation.Default.LocationChanged -= OnLocationChanged;
-#if ANDROID
-            AndriodPermissionService.StopAndroidGpsService();
-#endif
-            return false;
         }
+        _isListening = true;
+    }
+    /// <summary>
+    /// Получаем все разрешения на работе в фоне
+    /// </summary>
+    /// <returns></returns>
+    private async Task<bool> GetPermissions()
+    {
+        if (!await CheckAndRequestGpsPermissionAsync()) return false;
+#if ANDROID
+        await AndriodPermissionService.RequestBackgroundLocationPermissionAsync();
+        AndriodPermissionService.StartAndroidGpsService();
+#endif
+        return true;
     }
 
-#if ANDROID
-    
-    
+    /// <summary>
+    /// Запускает запись трека.
+    /// </summary>
+    public async Task<bool> StartRecordingAsync()
+    {
+        if (!IsListening ||
+            IsRecording ||
+            !await GetPermissions())
+            return false;
 
-#endif
+        _trackPoints.Clear();
+        DiscardedCount = 0;
+
+        _isRecording = true;
+        return _isRecording;
+    }
 
     /// <summary>
     /// Останавливает запись трека и сохраняет GPX-файл.
@@ -99,10 +96,7 @@ public class GpsLocationService : IGpsLocationService
         _isRecording = false;
 
         Geolocation.Default.LocationChanged -= OnLocationChanged;
-        Geolocation.Default.StopListeningForeground();
-#if ANDROID
-        AndriodPermissionService.StopAndroidGpsService();
-#endif
+        
         //TODO: оптимизация трека
     }
 
@@ -133,7 +127,7 @@ public class GpsLocationService : IGpsLocationService
     /// <summary>
     /// Проверяет, выдан ли доступ к GPS.
     /// </summary>
-    public static async Task<bool> CheckGpsPermissionAsync()
+    public static async Task<bool> CheckAndRequestGpsPermissionAsync()
     {
         var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         if (status != PermissionStatus.Granted)
@@ -150,17 +144,20 @@ public class GpsLocationService : IGpsLocationService
     {
         // TODO: Реализовать запись трека по флагу записи
         if (e.Location == null) return;
-
-        var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
-
-        if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, out var reason))
+        if (_isRecording)
         {
-            DiscardedCount++;
-            System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
-            return;
-        }
+            var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
 
-        _trackPoints.Add(e.Location);
+            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, out var reason))
+            {
+                DiscardedCount++;
+                System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
+                return;
+            }
+
+            _trackPoints.Add(e.Location);
+        }
+        
         LocationReceived?.Invoke(this, new LocationPointEventArgs
         {
             Location = e.Location,
@@ -169,4 +166,14 @@ public class GpsLocationService : IGpsLocationService
         });
     }
 
+    /// <summary>
+    /// TODO: реализовать метод интерфейса остановки прослушивания
+    /// </summary>
+    public void Dispose()
+    {
+        Geolocation.Default.StopListeningForeground();
+#if ANDROID
+        AndriodPermissionService.StopAndroidGpsService();
+#endif
+    }
 }
