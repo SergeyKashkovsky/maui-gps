@@ -62,7 +62,7 @@ public class GpsLocationService : IGpsLocationService
     /// <returns></returns>
     private async Task<bool> GetPermissions()
     {
-        if (!await CheckAndRequestGpsPermissionAsync()) return false;
+        if (!await AndriodPermissionService.CheckAndRequestGpsPermissionAsync()) return false;
 #if ANDROID
         await AndriodPermissionService.RequestBackgroundLocationPermissionAsync();
         AndriodPermissionService.StartAndroidGpsService();
@@ -124,16 +124,7 @@ public class GpsLocationService : IGpsLocationService
         return (coarse, fine);
     }
 
-    /// <summary>
-    /// Проверяет, выдан ли доступ к GPS.
-    /// </summary>
-    public static async Task<bool> CheckAndRequestGpsPermissionAsync()
-    {
-        var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
-        if (status != PermissionStatus.Granted)
-            status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
-        return status == PermissionStatus.Granted;
-    }
+    
 
     /// <summary>
     /// Обработчик события получения точки от GPS

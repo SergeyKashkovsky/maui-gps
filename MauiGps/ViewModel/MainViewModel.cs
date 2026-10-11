@@ -118,7 +118,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task CheckGpsAsync()
     {
-        var ok = await GpsLocationService.CheckAndRequestGpsPermissionAsync();
+        var ok = await AndriodPermissionService.CheckAndRequestGpsPermissionAsync();
         if (!ok)
         {
             CoarseCoords = "Примерные: Нет разрешений";
