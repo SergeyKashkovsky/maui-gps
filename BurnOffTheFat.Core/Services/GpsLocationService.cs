@@ -1,14 +1,16 @@
 ﻿using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace BurnOffTheFat.Core.Services;
 
 /// <summary>
 /// Работаем с гео-локацией, треком и всем, что с этим связано
 /// </summary>
-public class GpsLocationService : IGpsLocationService
+public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocationService
 {
+
     /// <summary>
     /// Интервал получения точек трека
     /// </summary>
@@ -22,6 +24,10 @@ public class GpsLocationService : IGpsLocationService
     public double CurrentSpeedKmH { get; private set; } = 0;
     /// <inheritdoc/>
     public double TotalDistance { get; private set; } = 0;
+    /// <inheritdoc/>
+    public double TotalAscentM { get; private set; } = 0;
+    /// <inheritdoc/>
+    public double TotalDescentM { get; private set; } = 0;
 
     private bool _isListening;
     /// <inheritdoc/>
@@ -33,10 +39,10 @@ public class GpsLocationService : IGpsLocationService
     
     /// <inheritdoc/>
     public int PointCount => _trackPoints.Count;
-    
 
     /// <inheritdoc/>
     public int DiscardedCount { get; private set; }
+
     /// <inheritdoc/>
     public event EventHandler<LocationPointEventArgs>? LocationReceived;
     /// <inheritdoc/>
@@ -85,6 +91,8 @@ public class GpsLocationService : IGpsLocationService
             !await GetPermissions())
             return false;
 
+        logger.LogDebug("Начинаю запись трека");
+
         _trackPoints.Clear();
         DiscardedCount = 0;
         TotalDistance = 0;
@@ -102,6 +110,7 @@ public class GpsLocationService : IGpsLocationService
         _isRecording = false;
 
         Geolocation.Default.LocationChanged -= OnLocationChanged;
+        logger.LogDebug("Запись трека остановлена. Пройденный путь {distance} метров.", TotalDistance);
     }
 
     /// <summary>
@@ -138,24 +147,26 @@ public class GpsLocationService : IGpsLocationService
     private void OnLocationChanged(object? sender, GeolocationLocationChangedEventArgs e)
     {
         if (e.Location == null) return;
+        // Если производится запись трека
         if (_isRecording)
         {
             var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
 
-            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, out var reason, out var distance))
+            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, logger, out var reason, out var distance))
             {
+                // Если точка нам не подходит, возвращаем параметры старой точки
                 DiscardedCount++;
-                TotalDistance += distance;
+                logger.LogDebug("Точка не прошла фильтр: {reason}", reason);
                 System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
                 LocationReceived?.Invoke(this, new LocationPointEventArgs
                 {
                     Location = new()
                     {
                         Accuracy = e.Location.Accuracy,
-                        Altitude = e.Location.Altitude ?? lastPoint?.Altitude,
-                        Latitude = e.Location.Latitude,
-                        Longitude = e.Location.Longitude,
-                        Speed = e.Location.Speed ?? lastPoint?.Speed,
+                        Altitude = lastPoint?.Altitude ?? e.Location.Altitude,
+                        Latitude = lastPoint?.Latitude ?? e.Location.Latitude,
+                        Longitude = lastPoint?.Longitude ?? e.Location.Longitude,
+                        Speed = lastPoint?.Speed,
                     },
                     PointCount = _trackPoints.Count,
                     DiscardedCount = DiscardedCount
@@ -163,6 +174,13 @@ public class GpsLocationService : IGpsLocationService
                 return;
 
             }
+            TotalDistance += distance;
+            var ascent = e.Location.Altitude - lastPoint?.Altitude ?? 0;
+            if (ascent < 0)
+                TotalDescentM += -ascent;
+            else
+                TotalAscentM += ascent;
+
             _trackPoints.Add(e.Location);
         }
 
@@ -170,7 +188,10 @@ public class GpsLocationService : IGpsLocationService
         {
             Location = e.Location,
             PointCount = _trackPoints.Count,
-            DiscardedCount = DiscardedCount
+            DiscardedCount = DiscardedCount,
+            TotalAscentM = (int)TotalAscentM,
+            TotalDescentM = (int)TotalDescentM,
+            TotalDistanceM = (int)TotalDistance
         });
     }
 

@@ -17,5 +17,16 @@ public class LocationPointEventArgs
     /// Количество отброшенных точек TODO: зачем?
     /// </summary>
     public int DiscardedCount { get; init; }
-    //TODO: пройденный путь, набранная высота, общий спуск
+    /// <summary>
+    /// Пройденный путь в метрах
+    /// </summary>
+    public int TotalDistanceM {  get; init; }
+    /// <summary>
+    /// Накопленный подъем
+    /// </summary>
+    public int TotalAscentM { get; init; }
+    /// <summary>
+    /// Накопленный спуск
+    /// </summary>
+    public int TotalDescentM { get; init; }
 }

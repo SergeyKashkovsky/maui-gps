@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿using BurnOffTheFat.Core.Services;
+using Microsoft.Extensions.Logging;
+using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
 
@@ -10,7 +12,7 @@ public static class LocationUtils
     public const double MaxAccuracyMeters = 20.0;
 
     /// <summary>Минимальное расстояние между точками трека (в метрах).</summary>
-    public const double MinDistanceMeters = 3.0;
+    public const double MinDistanceMeters = 1.5;
 
     /// <summary>Максимальная скорость по умолчанию (км/ч).</summary>
     public const double DefaultMaxSpeedKmH = 45.0;
@@ -26,6 +28,7 @@ public static class LocationUtils
         Location newLocation,
         Location? lastPoint,
         double maxSpeedKmH,
+        ILogger<GpsLocationService> logger,
         out string reason,
         out double distance)
     {
@@ -36,6 +39,13 @@ public static class LocationUtils
         if (newLocation.Accuracy.HasValue && newLocation.Accuracy.Value > MaxAccuracyMeters)
         {
             reason = $"Точность {newLocation.Accuracy.Value:F1} м > {MaxAccuracyMeters} м";
+            return false;
+        }
+
+        // Фильтр по вертикальной точности
+        if (newLocation.VerticalAccuracy.HasValue && newLocation.VerticalAccuracy.Value > MaxAccuracyMeters)
+        {
+            reason = $"Вертикальная точность {newLocation.VerticalAccuracy.Value:F1} м > {MaxAccuracyMeters} м";
             return false;
         }
 
@@ -94,6 +104,8 @@ public static class LocationUtils
             reason = $"Ускорение: {acceleration:F2} м/с² > {maxAcceleration:F2} км/ч";
             return false;
         }
+
+        logger.LogDebug("Рассчитаны параметры валидной точки: расстояние от предыдущей - {distance}м, время - {timeDeltaSeconds}с, скорость - {currentSpeedMs}км/ч, ускорение - {acceleration}м/с^2.{nl} Параметры старой точки: {@oldlocation}.{nl} Параметры новой точки: {@newlocation}", distance, timeDeltaSeconds, currentSpeedKmH, acceleration, Environment.NewLine, lastPoint, Environment.NewLine, newLocation);
 
         newLocation.Speed = currentSpeedMs;
 

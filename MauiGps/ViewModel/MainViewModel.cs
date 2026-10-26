@@ -255,7 +255,7 @@ public partial class MainViewModel : ObservableObject
                 ? $"Высота: {e.Location.Altitude.Value:F1} м"
                 : "Высота: определение...";
             GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
-            var currentSpeedKmH = e.Location.Speed.HasValue ? e.Location.Speed.Value : 0;
+            var currentSpeedKmH = (e.Location.Speed.HasValue ? e.Location.Speed.Value : 0)*3.6;
             CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч";
         });
     }

@@ -38,6 +38,14 @@ public interface IGpsLocationService
     /// Пройденный путь в метрах
     /// </summary>
     double TotalDistance { get; }
+    /// <summary>
+    /// Накопленный подъем
+    /// </summary>
+    double TotalAscentM { get; }
+    /// <summary>
+    /// Накопленный спуск
+    /// </summary>
+    double TotalDescentM { get; }
 
     /// <summary>
     /// Событие получения новой валидной точки местоположения
