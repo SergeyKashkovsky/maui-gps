@@ -26,9 +26,11 @@ public static class LocationUtils
         Location newLocation,
         Location? lastPoint,
         double maxSpeedKmH,
-        out string reason)
+        out string reason,
+        out double distance)
     {
         reason = string.Empty;
+        distance = 0;
 
         // Фильтр по точности
         if (newLocation.Accuracy.HasValue && newLocation.Accuracy.Value > MaxAccuracyMeters)
@@ -48,10 +50,10 @@ public static class LocationUtils
         }
 
         // убираем, если стоим, или очень медленно двигаемся
-        var distanceMeters = lastPoint.CalculateDistance3DMeters(newLocation);
-        if (distanceMeters < MinDistanceMeters)
+        distance = lastPoint.CalculateDistance3DMeters(newLocation);
+        if (distance < MinDistanceMeters)
         {
-            reason = $"Расстояние между точками: {distanceMeters:F2} м < {MinDistanceMeters} м";
+            reason = $"Расстояние между точками: {distance:F2} м < {MinDistanceMeters} м";
             return false;
         }
 
@@ -62,7 +64,7 @@ public static class LocationUtils
             reason = $"Одновременные события или точка из прошлого: {timeDeltaSeconds:F2} с";
             return false;
         }
-        var currentSpeedMs = distanceMeters / timeDeltaSeconds;
+        var currentSpeedMs = distance / timeDeltaSeconds;
         var currentSpeedKmH = currentSpeedMs * 3.6;
         
         if (currentSpeedKmH > maxSpeedKmH)

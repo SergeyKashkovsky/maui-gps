@@ -34,6 +34,10 @@ public interface IGpsLocationService
     /// Текущая скорость
     /// </summary>
     double CurrentSpeedKmH { get; }
+    /// <summary>
+    /// Пройденный путь в метрах
+    /// </summary>
+    double TotalDistance { get; }
 
     /// <summary>
     /// Событие получения новой валидной точки местоположения

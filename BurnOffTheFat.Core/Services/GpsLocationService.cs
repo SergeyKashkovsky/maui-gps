@@ -20,6 +20,8 @@ public class GpsLocationService : IGpsLocationService
     public double MaxSpeedKmH { get; set; } = LocationUtils.DefaultMaxSpeedKmH;
     /// <inheritdoc/>
     public double CurrentSpeedKmH { get; private set; } = 0;
+    /// <inheritdoc/>
+    public double TotalDistance { get; private set; } = 0;
 
     private bool _isListening;
     /// <inheritdoc/>
@@ -31,6 +33,7 @@ public class GpsLocationService : IGpsLocationService
     
     /// <inheritdoc/>
     public int PointCount => _trackPoints.Count;
+    
 
     /// <inheritdoc/>
     public int DiscardedCount { get; private set; }
@@ -84,6 +87,7 @@ public class GpsLocationService : IGpsLocationService
 
         _trackPoints.Clear();
         DiscardedCount = 0;
+        TotalDistance = 0;
 
         _isRecording = true;
         return _isRecording;
@@ -98,8 +102,6 @@ public class GpsLocationService : IGpsLocationService
         _isRecording = false;
 
         Geolocation.Default.LocationChanged -= OnLocationChanged;
-        
-        //TODO: оптимизация трека
     }
 
     /// <summary>
@@ -140,9 +142,10 @@ public class GpsLocationService : IGpsLocationService
         {
             var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
 
-            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, out var reason))
+            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, out var reason, out var distance))
             {
                 DiscardedCount++;
+                TotalDistance += distance;
                 System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
                 LocationReceived?.Invoke(this, new LocationPointEventArgs
                 {
