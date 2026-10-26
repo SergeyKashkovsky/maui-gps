@@ -1,4 +1,5 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Utils;
 using Microsoft.Extensions.Logging;
@@ -18,8 +19,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     private readonly List<Location> _trackPoints = new();
     /// <inheritdoc/>
     public List<Location> Points => _trackPoints;
-    /// <inheritdoc/>
-    public double MaxSpeedKmH { get; set; } = LocationUtils.DefaultMaxSpeedKmH;
+    
     /// <inheritdoc/>
     public double CurrentSpeedKmH { get; private set; } = 0;
     /// <inheritdoc/>
@@ -28,6 +28,8 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     public double TotalAscentM { get; private set; } = 0;
     /// <inheritdoc/>
     public double TotalDescentM { get; private set; } = 0;
+    /// <inheritdoc/>
+    public SpeedMode SpeedMode { get; set; }
 
     private bool _isListening;
     /// <inheritdoc/>
@@ -42,6 +44,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
 
     /// <inheritdoc/>
     public int DiscardedCount { get; private set; }
+    
 
     /// <inheritdoc/>
     public event EventHandler<LocationPointEventArgs>? LocationReceived;
@@ -152,7 +155,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         {
             var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
 
-            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, logger, out var reason, out var distance))
+            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, SpeedMode, logger, out var reason, out var distance))
             {
                 // Если точка нам не подходит, возвращаем параметры старой точки
                 DiscardedCount++;

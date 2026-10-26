@@ -1,4 +1,5 @@
-﻿using BurnOffTheFat.Core.Services;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Core.Services;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text;
@@ -22,12 +23,12 @@ public static class LocationUtils
     /// </summary>
     /// <param name="newLocation">Новая точка.</param>
     /// <param name="lastPoint">Предыдущая точка трека (может быть null).</param>
-    /// <param name="maxSpeedKmH">Лимит скорости для фильтра отскоков.</param>
+    /// <param name="speedMode">Режим скорости для фильтра отскоков.</param>
     /// <param name="reason">Причина отбраковки (для диагностики).</param>
     public static bool IsPointAcceptable(
         Location newLocation,
         Location? lastPoint,
-        double maxSpeedKmH,
+        SpeedMode speedMode,
         ILogger<GpsLocationService> logger,
         out string reason,
         out double distance)
@@ -76,7 +77,25 @@ public static class LocationUtils
         }
         var currentSpeedMs = distance / timeDeltaSeconds;
         var currentSpeedKmH = currentSpeedMs * 3.6;
-        
+        // TODO: вынести профиль скоростей в Common
+        var maxSpeedKmH = 90;
+        var maxAcceleration = 8.0;
+        switch (speedMode)
+        {
+            case SpeedMode.Walking:
+                maxSpeedKmH = 15;
+                maxAcceleration = 1.2;
+                break;
+            case SpeedMode.Running:
+                maxSpeedKmH = 25;
+                maxAcceleration = 2.0;
+                break;
+            case SpeedMode.Cycling:
+                maxSpeedKmH = 45;
+                maxAcceleration = 4.0;
+                break;
+        }
+
         if (currentSpeedKmH > maxSpeedKmH)
         {
             reason = $"Отскок: {currentSpeedKmH:F1} км/ч > {maxSpeedKmH:F1} км/ч";
@@ -89,14 +108,6 @@ public static class LocationUtils
         var previousGeomSpeedMS = lastPoint!.Speed.HasValue ? lastPoint.Speed.Value : 0.0;
 
         var acceleration = Math.Abs(currentSpeedMs - previousGeomSpeedMS) / timeDeltaSeconds;
-
-        var maxAcceleration = maxSpeedKmH < 15
-            ? 1.2 // ходьба
-            : maxSpeedKmH < 25
-                ? 2.0 // бег
-                : maxSpeedKmH < 45
-                    ? 4.0 // велосипед
-                    : 8.0; // машина
 
         // 5. Проверка на выброс по ускорению
         if (acceleration > maxAcceleration)

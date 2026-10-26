@@ -1,4 +1,5 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
 using BurnOffTheFat.Core.Utils;
@@ -31,23 +32,39 @@ public partial class MainViewModel : ObservableObject
     private string _altitude = "Высота отобразится при записи";
 
     [ObservableProperty]
-    private string _coarseCoords = "Примерные: Нажмите обновить";
-
-    [ObservableProperty]
-    private string _fineCoords = "Точные: Нажмите обновить";
-    
-    [ObservableProperty]
     private bool _isListening;
     
     [ObservableProperty]
     private bool _isRecording;
 
     [ObservableProperty]
-    private double _maxSpeedKmH = LocationUtils.DefaultMaxSpeedKmH;
-    [ObservableProperty]
     private string _currentSpeedKmHText;
 
-    // Свойства, вычисляемые из состояния
+    [ObservableProperty]
+    private string _totalDistanceMText;
+    [ObservableProperty]
+    private string _totalAscentMText;
+    [ObservableProperty]
+    private string _totalDescentMText;
+    /// <summary>
+    /// Коллекция режимов тренировки для отображения в выпадающем списке
+    /// </summary>
+    public IReadOnlyList<SpeedMode> SpeedModes { get; } =
+        Enum.GetValues<SpeedMode>();
+
+    [ObservableProperty]
+    private SpeedMode _selectedSpeedMode = SpeedMode.Walking;
+
+    /// <summary>
+    /// Обработчик выбора режима скорости
+    /// </summary>
+    /// <param name="value"></param>
+    partial void OnSelectedSpeedModeChanged(SpeedMode value)
+        => _gps.SpeedMode = value;
+
+    /// <summary>
+    /// Название кнопки остановки/запуска тренировки
+    /// </summary>
     public string TrackButtonText => IsRecording
         ? "Остановить и сохранить трек"
         : "Начать запись трека";
@@ -60,12 +77,6 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(TrackButtonText));
         OnPropertyChanged(nameof(TrackButtonColor));
     }
-
-    // Передаём значение в сервис
-    partial void OnMaxSpeedKmHChanged(double value)
-        => _gps.MaxSpeedKmH = value;
-
-    //TODO: метод запуска получения параметров местоположения для начала записи трека
 
     /// <summary>
     /// Запустить или остановить запись трека
@@ -113,32 +124,6 @@ public partial class MainViewModel : ObservableObject
             Status = "Статус: Готов к записи";
         }
     }
-    /// <summary>
-    /// Проверка статуса GPS TODO: не относится к треку, можно пометить Obsolete
-    /// </summary>
-    /// <returns></returns>
-    [RelayCommand]
-    private async Task CheckGpsAsync()
-    {
-        var ok = await AndriodPermissionService.CheckAndRequestGpsPermissionAsync();
-        if (!ok)
-        {
-            CoarseCoords = "Примерные: Нет разрешений";
-            FineCoords = "Точные: Нет разрешений";
-            return;
-        }
-
-        var (coarse, fine) = await _gps.GetTestLocationsAsync();
-
-        CoarseCoords = coarse != null
-            ? $"Примерные: {LocationUtils.FormatCoords(coarse, 4)} (Погрешность: {coarse.Accuracy:F0}м)"
-            : "Примерные: Ошибка получения";
-
-        FineCoords = fine != null
-            ? $"Точные: {LocationUtils.FormatCoords(fine)} (Погрешность: {fine.Accuracy:F0}м)"
-            : "Точные: Ошибка получения";
-    }
-
     /// <summary>
     /// Загрузка трека из файла
     /// </summary>
@@ -198,9 +183,6 @@ public partial class MainViewModel : ObservableObject
                 ? $"Высота: {lastPoint.Altitude.Value:F1} м"
                 : "Высота: нет данных в файле";
 
-            // Сбрасываем старые значения тестов, если они выводились
-            CoarseCoords = "Примерные: Нажмите обновить";
-            FineCoords = "Точные: Нажмите обновить";
         }
         catch (Exception ex)
         {
@@ -257,6 +239,9 @@ public partial class MainViewModel : ObservableObject
             GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
             var currentSpeedKmH = (e.Location.Speed.HasValue ? e.Location.Speed.Value : 0)*3.6;
             CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч";
+            TotalDistanceMText = $"Пройденный путь: {e.TotalDistanceM}м";
+            TotalAscentMText = $"Общий набор высоты: {e.TotalAscentM}м";
+            TotalDescentMText = $"Общий спуск: {e.TotalDescentM}м";
         });
     }
 }

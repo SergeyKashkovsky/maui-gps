@@ -1,4 +1,5 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Core.Events;
 
 namespace BurnOffTheFat.Core.Interfaces;
 /// <summary>
@@ -27,9 +28,9 @@ public interface IGpsLocationService
     /// </summary>
     int DiscardedCount { get; }
     /// <summary>
-    /// Максимальная скорость, определенная для фильтрации выбросов
+    /// Текущий режим скорости для тренировки
     /// </summary>
-    double MaxSpeedKmH { get; set; }
+    SpeedMode SpeedMode { get; set; }
     /// <summary>
     /// Текущая скорость
     /// </summary>
