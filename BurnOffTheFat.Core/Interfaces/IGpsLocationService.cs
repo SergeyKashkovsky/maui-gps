@@ -20,6 +20,10 @@ public interface IGpsLocationService
     /// </summary>
     List<Location> Points { get; }
     /// <summary>
+    /// Коллекция сырых собранных точек
+    /// </summary>
+    List<Location> SourcePoints { get; }
+    /// <summary>
     /// Количество записанных точек
     /// </summary>
     int PointCount { get; }

@@ -2,7 +2,6 @@
 using BurnOffTheFat.Core.Models;
 using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Maui.Storage;
-using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
 
@@ -10,7 +9,7 @@ namespace BurnOffTheFat.Core.Services;
 /// <summary>
 /// Сервис для работы с файлами треков
 /// </summary>
-public class GpxFileService : IGpxFileService
+public class TrackFileService : ITrackFileService
 {
     /// <inheritdoc/>
     public async Task<FileSaveResult> CreateGpxFromTextAsync(string fileName, string content)
@@ -25,6 +24,24 @@ public class GpxFileService : IGpxFileService
             return result.IsSuccessful
                 ? new FileSaveResult(true, result.FilePath, "OK")
                 : new FileSaveResult(false, null, "Сохранение отменено пользователем");
+        }
+        catch (Exception ex)
+        {
+            return new FileSaveResult(false, null, $"Ошибка при сохранении: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<FileSaveResult> CreateFileFromTextAsync(string fileName, string content, CancellationToken ct)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(fileName);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
+
+            await File.WriteAllTextAsync(fileName, content, Encoding.UTF8, ct);
+            return new FileSaveResult(true, fileName, "OK");
         }
         catch (Exception ex)
         {

@@ -1,5 +1,6 @@
 ﻿using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
+using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Maui;
 using MauiGps.ViewModel;
 using Microsoft.Extensions.Logging;
@@ -23,20 +24,10 @@ public static class MauiProgram
             .UseMauiCommunityToolkit()
             .Services
                 .AddSingleton<IGpsLocationService, GpsLocationService>()
-                .AddSingleton<IGpxFileService, GpxFileService>()
+                .AddSingleton<ITrackFileService, TrackFileService>()
                 .AddSingleton<MainViewModel>()
                 .AddSingleton<MainPage>();
-        string logDirectory = FileSystem.Current.AppDataDirectory;
-
-#if ANDROID
-        // Для Android берем специальную папку Documents внутри Android/data/..., доступную по USB
-        var context = Android.App.Application.Context;
-        var externalFilesDir = context.GetExternalFilesDir(Android.OS.Environment.DirectoryDocuments);
-        if (externalFilesDir != null)
-        {
-            logDirectory = externalFilesDir.AbsolutePath;
-        }
-#endif
+        var logDirectory = FileSystemUtils.GetApllicationPublicDirectory();
 
         // 2. Передаем путь в глобальный контекст NLog
         GlobalDiagnosticsContext.Set("LogDir", logDirectory);

@@ -16,10 +16,16 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     /// Интервал получения точек трека
     /// </summary>
     const int GetLocationInterval = 2;
-    private readonly List<Location> _trackPoints = new();
+    private readonly List<Location> _trackPoints = [];
     /// <inheritdoc/>
     public List<Location> Points => _trackPoints;
-    
+    /// <summary>
+    /// Исходный, не отфиольтрованный массив точек.
+    /// </summary>
+    private readonly List<Location> _sourceTrackPoints = [];
+    /// <inheritdoc/>
+    public List<Location> SourcePoints => _sourceTrackPoints;
+
     /// <inheritdoc/>
     public double CurrentSpeedKmH { get; private set; } = 0;
     /// <inheritdoc/>
@@ -97,6 +103,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         logger.LogDebug("Начинаю запись трека");
 
         _trackPoints.Clear();
+        _sourceTrackPoints.Clear();
         DiscardedCount = 0;
         TotalDistance = 0;
 
@@ -105,7 +112,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     }
 
     /// <summary>
-    /// Останавливает запись трека и сохраняет GPX-файл.
+    /// Останавливает запись трека и сохраняет исходный трек-файл.
     /// </summary>
     public async Task StopRecordingAsync()
     {
@@ -114,6 +121,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
 
         Geolocation.Default.LocationChanged -= OnLocationChanged;
         logger.LogDebug("Запись трека остановлена. Пройденный путь {distance} метров.", TotalDistance);
+        
     }
 
     /// <summary>
@@ -154,6 +162,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         if (_isRecording)
         {
             var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
+            _sourceTrackPoints.Add(e.Location);
 
             if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, SpeedMode, logger, out var reason, out var distance))
             {
@@ -172,7 +181,10 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
                         Speed = lastPoint?.Speed,
                     },
                     PointCount = _trackPoints.Count,
-                    DiscardedCount = DiscardedCount
+                    DiscardedCount = DiscardedCount,
+                    TotalAscentM = (int)TotalAscentM,
+                    TotalDescentM = (int)TotalDescentM,
+                    TotalDistanceM = (int)TotalDistance
                 });
                 return;
 

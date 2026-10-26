@@ -6,17 +6,21 @@ using BurnOffTheFat.Core.Services;
 using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace MauiGps.ViewModel;
 
 public partial class MainViewModel : ObservableObject
 {
     private readonly IGpsLocationService _gps;
-    private readonly IGpxFileService _gpxFileService;
-    public MainViewModel(IGpsLocationService gps, IGpxFileService fileService)
+    private readonly ITrackFileService _gpxFileService;
+    private readonly ILogger<MainViewModel> _logger;
+    public MainViewModel(IGpsLocationService gps, ITrackFileService fileService, ILogger<MainViewModel> logger)
     {
         _gps = gps;
         _gpxFileService = fileService;
+        _logger = logger;
 
         _gps.LocationReceived += OnLocationReceived;
     }
@@ -113,16 +117,26 @@ public partial class MainViewModel : ObservableObject
             Status = "Статус: Сохранение...";
             await _gps.StopRecordingAsync();
             var gpx = LocationUtils.BuildGpx(_gps.Points);
-            var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}.gpx";
-            var fileResult = await _gpxFileService.CreateGpxFromTextAsync(fileName, gpx);
+            var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}";
+            var gpxFileName = $"{fileName}.gpx";
+            var fileResult = await _gpxFileService.CreateGpxFromTextAsync(gpxFileName, gpx);
             if (fileResult.Success)
                 await ShowAlertAsync("Успех",
                     $"Трек сохранен!\nКоличество точек: {_gps.PointCount}\nФайл: {fileResult.FilePath}");
             else
                 await ShowAlertAsync("Внимание", fileResult.Message);
-
             IsRecording = false;
             Status = "Статус: Готов к записи";
+
+            if (_gps.SourcePoints.Count == 0) return;
+            var filePath = FileSystemUtils.GetApllicationPublicDirectory();
+            var jsonFileName = Path.Combine(filePath, $"{fileName}.json");
+            fileResult = await _gpxFileService.CreateFileFromTextAsync(jsonFileName, JsonSerializer.Serialize(_gps.SourcePoints), CancellationToken.None);
+            if (fileResult.Success)
+                _logger.LogDebug($"Исходный трек сохранен! Количество точек: {_gps.SourcePoints}. Файл: {fileResult.FilePath}");
+            else
+                _logger.LogWarning("Ошибка сохранения исходного трека: {mess}", fileResult.Message);
+
         }
     }
     /// <summary>
@@ -138,7 +152,7 @@ public partial class MainViewModel : ObservableObject
             var customFileType = new FilePickerFileType(
                 new Dictionary<DevicePlatform, IEnumerable<string>>
                 {
-                { DevicePlatform.Android, new[] { "application/gpx+xml", "application/xml", "*/*" } }, // На Android mime-типы бывают капризны
+                { DevicePlatform.Android, new[] { "application/gpx+xml", "application/xml", "*/*" } },
                 { DevicePlatform.iOS, new[] { "com.topografix.gpx" } },
                 { DevicePlatform.WinUI, new[] { ".gpx" } }
                 });
