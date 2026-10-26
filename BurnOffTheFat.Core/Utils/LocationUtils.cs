@@ -48,7 +48,7 @@ public static class LocationUtils
         }
 
         // убираем, если стоим, или очень медленно двигаемся
-        var distanceMeters = Location.CalculateDistance(lastPoint, newLocation, DistanceUnits.Kilometers) * 1000;
+        var distanceMeters = lastPoint.CalculateDistance3DMeters(newLocation);
         if (distanceMeters < MinDistanceMeters)
         {
             reason = $"Расстояние между точками: {distanceMeters:F2} м < {MinDistanceMeters} м";
@@ -189,5 +189,28 @@ public static class LocationUtils
             }
         }
         return locations;
+    }
+
+    /// <summary>
+    /// Вычисляет расстояние между двумя точками с учетом перепада высот.
+    /// </summary>
+    /// <returns>Расстояние в метрах.</returns>
+    public static double CalculateDistance3DMeters(this Location start, Location end)
+    {
+        // 1. Получаем плоское расстояние по дуге большого круга (в километрах)
+        double flatDistanceKm = Location.CalculateDistance(start, end, DistanceUnits.Kilometers);
+
+        // Переводим в метры
+        double flatDistanceMeters = flatDistanceKm * 1000.0;
+
+        // 2. Считаем разницу высот (если высота не указана, считаем её равной 0)
+        double startAltitude = start.Altitude ?? 0.0;
+        double endAltitude = end.Altitude ?? 0.0;
+        double heightDelta = endAltitude - startAltitude;
+
+        // 3. Применяем теорему Пифагора для трехмерного пространства
+        double distance3D = Math.Sqrt(Math.Pow(flatDistanceMeters, 2) + Math.Pow(heightDelta, 2));
+
+        return distance3D;
     }
 }

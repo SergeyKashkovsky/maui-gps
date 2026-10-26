@@ -135,7 +135,6 @@ public class GpsLocationService : IGpsLocationService
     /// <param name="e"></param>
     private void OnLocationChanged(object? sender, GeolocationLocationChangedEventArgs e)
     {
-        // TODO: Реализовать запись трека по флагу записи
         if (e.Location == null) return;
         if (_isRecording)
         {
@@ -150,10 +149,10 @@ public class GpsLocationService : IGpsLocationService
                     Location = new()
                     {
                         Accuracy = e.Location.Accuracy,
-                        Altitude = lastPoint?.Altitude ?? e.Location.Altitude,
-                        Latitude = lastPoint?.Latitude ?? e.Location.Latitude,
-                        Longitude = lastPoint?.Longitude ?? e.Location.Longitude,
-                        Speed = lastPoint?.Speed,
+                        Altitude = e.Location.Altitude ?? lastPoint?.Altitude,
+                        Latitude = e.Location.Latitude,
+                        Longitude = e.Location.Longitude,
+                        Speed = e.Location.Speed ?? lastPoint?.Speed,
                     },
                     PointCount = _trackPoints.Count,
                     DiscardedCount = DiscardedCount
