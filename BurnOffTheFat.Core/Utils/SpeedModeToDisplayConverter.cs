@@ -1,7 +1,7 @@
 ﻿using BurnOffTheFat.Common.Enums;
 using System.Globalization;
 
-namespace MauiGps.Converters;
+namespace BurnOffTheFat.Core.Utils;
 
 public sealed class SpeedModeToDisplayConverter : IValueConverter
 {

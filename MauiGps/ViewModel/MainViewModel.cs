@@ -1,4 +1,5 @@
 ﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Common.Utils;
 using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
@@ -226,8 +227,6 @@ public partial class MainViewModel : ObservableObject
     /// <param name="e"></param>
     private void OnLocationReceived(object? sender, LocationPointEventArgs e)
     {
-        // Сервис уже вызвал это событие в UI-потоке (см. GpsLocationService)
-        // Если нет — обернём здесь:
         MainThread.BeginInvokeOnMainThread(() =>
         {
             CurrentCoords = $"Текущие: {LocationUtils.FormatCoords(e.Location)} " +
@@ -238,7 +237,8 @@ public partial class MainViewModel : ObservableObject
                 : "Высота: определение...";
             GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
             var currentSpeedKmH = (e.Location.Speed.HasValue ? e.Location.Speed.Value : 0)*3.6;
-            CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч";
+            var currentPaseHKmText = PaceFormatter.Format(currentSpeedKmH);
+            CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч, темп: {currentPaseHKmText}";
             TotalDistanceMText = $"Пройденный путь: {e.TotalDistanceM}м";
             TotalAscentMText = $"Общий набор высоты: {e.TotalAscentM}м";
             TotalDescentMText = $"Общий спуск: {e.TotalDescentM}м";
