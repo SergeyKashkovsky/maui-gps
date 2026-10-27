@@ -30,4 +30,8 @@
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\BurnOffTheFat.Common\BurnOffTheFat.Common.csproj" />
+	</ItemGroup>
+
 </Project>

@@ -1,4 +1,5 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Core.Events;
 
 namespace BurnOffTheFat.Core.Interfaces;
 /// <summary>
@@ -19,6 +20,10 @@ public interface IGpsLocationService
     /// </summary>
     List<Location> Points { get; }
     /// <summary>
+    /// Коллекция сырых собранных точек
+    /// </summary>
+    List<Location> SourcePoints { get; }
+    /// <summary>
     /// Количество записанных точек
     /// </summary>
     int PointCount { get; }
@@ -27,9 +32,25 @@ public interface IGpsLocationService
     /// </summary>
     int DiscardedCount { get; }
     /// <summary>
-    /// Максимальная скорость, определенная для фильтрации выбросов
+    /// Текущий режим скорости для тренировки
     /// </summary>
-    double MaxSpeedKmH { get; set; }
+    SpeedMode SpeedMode { get; set; }
+    /// <summary>
+    /// Текущая скорость
+    /// </summary>
+    double CurrentSpeedKmH { get; }
+    /// <summary>
+    /// Пройденный путь в метрах
+    /// </summary>
+    double TotalDistance { get; }
+    /// <summary>
+    /// Накопленный подъем
+    /// </summary>
+    double TotalAscentM { get; }
+    /// <summary>
+    /// Накопленный спуск
+    /// </summary>
+    double TotalDescentM { get; }
 
     /// <summary>
     /// Событие получения новой валидной точки местоположения

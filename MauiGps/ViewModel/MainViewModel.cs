@@ -1,20 +1,26 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Common.Utils;
+using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
 using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace MauiGps.ViewModel;
 
 public partial class MainViewModel : ObservableObject
 {
     private readonly IGpsLocationService _gps;
-    private readonly IGpxFileService _gpxFileService;
-    public MainViewModel(IGpsLocationService gps, IGpxFileService fileService)
+    private readonly ITrackFileService _gpxFileService;
+    private readonly ILogger<MainViewModel> _logger;
+    public MainViewModel(IGpsLocationService gps, ITrackFileService fileService, ILogger<MainViewModel> logger)
     {
         _gps = gps;
         _gpxFileService = fileService;
+        _logger = logger;
 
         _gps.LocationReceived += OnLocationReceived;
     }
@@ -31,21 +37,39 @@ public partial class MainViewModel : ObservableObject
     private string _altitude = "Высота отобразится при записи";
 
     [ObservableProperty]
-    private string _coarseCoords = "Примерные: Нажмите обновить";
-
-    [ObservableProperty]
-    private string _fineCoords = "Точные: Нажмите обновить";
-    
-    [ObservableProperty]
     private bool _isListening;
     
     [ObservableProperty]
     private bool _isRecording;
 
     [ObservableProperty]
-    private double _maxSpeedKmH = LocationUtils.DefaultMaxSpeedKmH;
+    private string _currentSpeedKmHText;
 
-    // Свойства, вычисляемые из состояния
+    [ObservableProperty]
+    private string _totalDistanceMText;
+    [ObservableProperty]
+    private string _totalAscentMText;
+    [ObservableProperty]
+    private string _totalDescentMText;
+    /// <summary>
+    /// Коллекция режимов тренировки для отображения в выпадающем списке
+    /// </summary>
+    public IReadOnlyList<SpeedMode> SpeedModes { get; } =
+        Enum.GetValues<SpeedMode>();
+
+    [ObservableProperty]
+    private SpeedMode _selectedSpeedMode = SpeedMode.Walking;
+
+    /// <summary>
+    /// Обработчик выбора режима скорости
+    /// </summary>
+    /// <param name="value"></param>
+    partial void OnSelectedSpeedModeChanged(SpeedMode value)
+        => _gps.SpeedMode = value;
+
+    /// <summary>
+    /// Название кнопки остановки/запуска тренировки
+    /// </summary>
     public string TrackButtonText => IsRecording
         ? "Остановить и сохранить трек"
         : "Начать запись трека";
@@ -58,12 +82,6 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(TrackButtonText));
         OnPropertyChanged(nameof(TrackButtonColor));
     }
-
-    // Передаём значение в сервис
-    partial void OnMaxSpeedKmHChanged(double value)
-        => _gps.MaxSpeedKmH = value;
-
-    //TODO: метод запуска получения параметров местоположения для начала записи трека
 
     /// <summary>
     /// Запустить или остановить запись трека
@@ -99,44 +117,28 @@ public partial class MainViewModel : ObservableObject
             Status = "Статус: Сохранение...";
             await _gps.StopRecordingAsync();
             var gpx = LocationUtils.BuildGpx(_gps.Points);
-            var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}.gpx";
-            var fileResult = await _gpxFileService.CreateGpxFromTextAsync(fileName, gpx);
+            var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}";
+            var gpxFileName = $"{fileName}.gpx";
+            var fileResult = await _gpxFileService.CreateGpxFromTextAsync(gpxFileName, gpx);
             if (fileResult.Success)
                 await ShowAlertAsync("Успех",
                     $"Трек сохранен!\nКоличество точек: {_gps.PointCount}\nФайл: {fileResult.FilePath}");
             else
                 await ShowAlertAsync("Внимание", fileResult.Message);
-
             IsRecording = false;
             Status = "Статус: Готов к записи";
+
+            if (_gps.SourcePoints.Count == 0) return;
+            var filePath = FileSystemUtils.GetApllicationPublicDirectory();
+            var jsonFileName = Path.Combine(filePath, $"{fileName}.json");
+            fileResult = await _gpxFileService.CreateFileFromTextAsync(jsonFileName, JsonSerializer.Serialize(_gps.SourcePoints), CancellationToken.None);
+            if (fileResult.Success)
+                _logger.LogDebug($"Исходный трек сохранен! Количество точек: {_gps.SourcePoints}. Файл: {fileResult.FilePath}");
+            else
+                _logger.LogWarning("Ошибка сохранения исходного трека: {mess}", fileResult.Message);
+
         }
     }
-    /// <summary>
-    /// Проверка статуса GPS TODO: не относится к треку, можно пометить Obsolete
-    /// </summary>
-    /// <returns></returns>
-    [RelayCommand]
-    private async Task CheckGpsAsync()
-    {
-        var ok = await AndriodPermissionService.CheckAndRequestGpsPermissionAsync();
-        if (!ok)
-        {
-            CoarseCoords = "Примерные: Нет разрешений";
-            FineCoords = "Точные: Нет разрешений";
-            return;
-        }
-
-        var (coarse, fine) = await _gps.GetTestLocationsAsync();
-
-        CoarseCoords = coarse != null
-            ? $"Примерные: {LocationUtils.FormatCoords(coarse, 4)} (Погрешность: {coarse.Accuracy:F0}м)"
-            : "Примерные: Ошибка получения";
-
-        FineCoords = fine != null
-            ? $"Точные: {LocationUtils.FormatCoords(fine)} (Погрешность: {fine.Accuracy:F0}м)"
-            : "Точные: Ошибка получения";
-    }
-
     /// <summary>
     /// Загрузка трека из файла
     /// </summary>
@@ -150,7 +152,7 @@ public partial class MainViewModel : ObservableObject
             var customFileType = new FilePickerFileType(
                 new Dictionary<DevicePlatform, IEnumerable<string>>
                 {
-                { DevicePlatform.Android, new[] { "application/gpx+xml", "application/xml", "*/*" } }, // На Android mime-типы бывают капризны
+                { DevicePlatform.Android, new[] { "application/gpx+xml", "application/xml", "*/*" } },
                 { DevicePlatform.iOS, new[] { "com.topografix.gpx" } },
                 { DevicePlatform.WinUI, new[] { ".gpx" } }
                 });
@@ -196,9 +198,6 @@ public partial class MainViewModel : ObservableObject
                 ? $"Высота: {lastPoint.Altitude.Value:F1} м"
                 : "Высота: нет данных в файле";
 
-            // Сбрасываем старые значения тестов, если они выводились
-            CoarseCoords = "Примерные: Нажмите обновить";
-            FineCoords = "Точные: Нажмите обновить";
         }
         catch (Exception ex)
         {
@@ -242,8 +241,6 @@ public partial class MainViewModel : ObservableObject
     /// <param name="e"></param>
     private void OnLocationReceived(object? sender, LocationPointEventArgs e)
     {
-        // Сервис уже вызвал это событие в UI-потоке (см. GpsLocationService)
-        // Если нет — обернём здесь:
         MainThread.BeginInvokeOnMainThread(() =>
         {
             CurrentCoords = $"Текущие: {LocationUtils.FormatCoords(e.Location)} " +
@@ -253,6 +250,12 @@ public partial class MainViewModel : ObservableObject
                 ? $"Высота: {e.Location.Altitude.Value:F1} м"
                 : "Высота: определение...";
             GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
+            var currentSpeedKmH = (e.Location.Speed.HasValue ? e.Location.Speed.Value : 0)*3.6;
+            var currentPaseHKmText = PaceFormatter.Format(currentSpeedKmH);
+            CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч, темп: {currentPaseHKmText}";
+            TotalDistanceMText = $"Пройденный путь: {e.TotalDistanceM}м";
+            TotalAscentMText = $"Общий набор высоты: {e.TotalAscentM}м";
+            TotalDescentMText = $"Общий спуск: {e.TotalDescentM}м";
         });
     }
 }

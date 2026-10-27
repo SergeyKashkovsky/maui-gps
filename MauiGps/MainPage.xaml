@@ -8,20 +8,17 @@
     <VerticalStackLayout Padding="30" Spacing="20"
                          HorizontalOptions="Center" VerticalOptions="Center">
 
-        <Label Text="{Binding CoarseCoords}" FontSize="16"/>
-        <Label Text="{Binding FineCoords}" FontSize="16"/>
-
-        <Button Text="Обновить данные GPS" Command="{Binding CheckGpsCommand}"/>
-
-
         <!--Интерфейс трека-->
         <Label Text="{Binding Status}" FontSize="18" FontAttributes="Bold"/>
-        <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-            <Label Text="Лимит скорости (км/ч):" VerticalOptions="Center"/>
-            <Entry Text="{Binding MaxSpeedKmH}"
-                   Keyboard="Numeric" WidthRequest="60"
-                   HorizontalTextAlignment="Center"/>
-        </HorizontalStackLayout>
+        <Picker ItemsSource="{Binding SpeedModes}"
+            SelectedItem="{Binding SelectedSpeedMode}"
+            ItemDisplayBinding="{Binding ., Converter={StaticResource SpeedModeToDisplay}}"
+            Title="Выберите режим"
+            WidthRequest="200"/>
+        <Label Text="{Binding CurrentSpeedKmHText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+        <Label Text="{Binding TotalDistanceMText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+        <Label Text="{Binding TotalAscentMText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+        <Label Text="{Binding TotalDescentMText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
         <Label Text="{Binding GpsAccuracyText}" FontSize="14" HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
         <Label Text="{Binding CurrentCoords}" FontSize="14"
                HorizontalOptions="Center" HorizontalTextAlignment="Center"/>

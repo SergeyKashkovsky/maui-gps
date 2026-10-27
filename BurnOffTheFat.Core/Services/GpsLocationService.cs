@@ -1,24 +1,42 @@
-﻿using BurnOffTheFat.Core.Events;
+﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace BurnOffTheFat.Core.Services;
 
 /// <summary>
 /// Работаем с гео-локацией, треком и всем, что с этим связано
 /// </summary>
-public class GpsLocationService : IGpsLocationService
+public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocationService
 {
+
     /// <summary>
     /// Интервал получения точек трека
     /// </summary>
     const int GetLocationInterval = 2;
-    private readonly List<Location> _trackPoints = new();
+    private readonly List<Location> _trackPoints = [];
     /// <inheritdoc/>
     public List<Location> Points => _trackPoints;
+    /// <summary>
+    /// Исходный, не отфиольтрованный массив точек.
+    /// </summary>
+    private readonly List<Location> _sourceTrackPoints = [];
     /// <inheritdoc/>
-    public double MaxSpeedKmH { get; set; } = LocationUtils.DefaultMaxSpeedKmH;
-    
+    public List<Location> SourcePoints => _sourceTrackPoints;
+
+    /// <inheritdoc/>
+    public double CurrentSpeedKmH { get; private set; } = 0;
+    /// <inheritdoc/>
+    public double TotalDistance { get; private set; } = 0;
+    /// <inheritdoc/>
+    public double TotalAscentM { get; private set; } = 0;
+    /// <inheritdoc/>
+    public double TotalDescentM { get; private set; } = 0;
+    /// <inheritdoc/>
+    public SpeedMode SpeedMode { get; set; }
+
     private bool _isListening;
     /// <inheritdoc/>
     public bool IsListening => _isListening;
@@ -32,6 +50,8 @@ public class GpsLocationService : IGpsLocationService
 
     /// <inheritdoc/>
     public int DiscardedCount { get; private set; }
+    
+
     /// <inheritdoc/>
     public event EventHandler<LocationPointEventArgs>? LocationReceived;
     /// <inheritdoc/>
@@ -60,7 +80,7 @@ public class GpsLocationService : IGpsLocationService
     /// Получаем все разрешения на работе в фоне
     /// </summary>
     /// <returns></returns>
-    private async Task<bool> GetPermissions()
+    private static async Task<bool> GetPermissions()
     {
         if (!await AndriodPermissionService.CheckAndRequestGpsPermissionAsync()) return false;
 #if ANDROID
@@ -80,15 +100,19 @@ public class GpsLocationService : IGpsLocationService
             !await GetPermissions())
             return false;
 
+        logger.LogDebug("Начинаю запись трека");
+
         _trackPoints.Clear();
+        _sourceTrackPoints.Clear();
         DiscardedCount = 0;
+        TotalDistance = 0;
 
         _isRecording = true;
         return _isRecording;
     }
 
     /// <summary>
-    /// Останавливает запись трека и сохраняет GPX-файл.
+    /// Останавливает запись трека и сохраняет исходный трек-файл.
     /// </summary>
     public async Task StopRecordingAsync()
     {
@@ -96,8 +120,8 @@ public class GpsLocationService : IGpsLocationService
         _isRecording = false;
 
         Geolocation.Default.LocationChanged -= OnLocationChanged;
+        logger.LogDebug("Запись трека остановлена. Пройденный путь {distance} метров.", TotalDistance);
         
-        //TODO: оптимизация трека
     }
 
     /// <summary>
@@ -133,27 +157,56 @@ public class GpsLocationService : IGpsLocationService
     /// <param name="e"></param>
     private void OnLocationChanged(object? sender, GeolocationLocationChangedEventArgs e)
     {
-        // TODO: Реализовать запись трека по флагу записи
         if (e.Location == null) return;
+        // Если производится запись трека
         if (_isRecording)
         {
             var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
+            _sourceTrackPoints.Add(e.Location);
 
-            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, MaxSpeedKmH, out var reason))
+            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, SpeedMode, logger, out var reason, out var distance))
             {
+                // Если точка нам не подходит, возвращаем параметры старой точки
                 DiscardedCount++;
+                logger.LogDebug("Точка не прошла фильтр: {reason}", reason);
                 System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
+                LocationReceived?.Invoke(this, new LocationPointEventArgs
+                {
+                    Location = new()
+                    {
+                        Accuracy = e.Location.Accuracy,
+                        Altitude = lastPoint?.Altitude ?? e.Location.Altitude,
+                        Latitude = lastPoint?.Latitude ?? e.Location.Latitude,
+                        Longitude = lastPoint?.Longitude ?? e.Location.Longitude,
+                        Speed = lastPoint?.Speed,
+                    },
+                    PointCount = _trackPoints.Count,
+                    DiscardedCount = DiscardedCount,
+                    TotalAscentM = (int)TotalAscentM,
+                    TotalDescentM = (int)TotalDescentM,
+                    TotalDistanceM = (int)TotalDistance
+                });
                 return;
+
             }
+            TotalDistance += distance;
+            var ascent = e.Location.Altitude - lastPoint?.Altitude ?? 0;
+            if (ascent < 0)
+                TotalDescentM += -ascent;
+            else
+                TotalAscentM += ascent;
 
             _trackPoints.Add(e.Location);
         }
-        
+
         LocationReceived?.Invoke(this, new LocationPointEventArgs
         {
             Location = e.Location,
             PointCount = _trackPoints.Count,
-            DiscardedCount = DiscardedCount
+            DiscardedCount = DiscardedCount,
+            TotalAscentM = (int)TotalAscentM,
+            TotalDescentM = (int)TotalDescentM,
+            TotalDistanceM = (int)TotalDistance
         });
     }
 

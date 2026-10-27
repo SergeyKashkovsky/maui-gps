@@ -1,32 +1,63 @@
 ﻿using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
+using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Maui;
 using MauiGps.ViewModel;
 using Microsoft.Extensions.Logging;
+using NLog;
+using NLog.Config;
+using NLog.Extensions.Logging;
+using NLog.Targets;
 
-namespace MauiGps
+namespace MauiGps;
+
+public static class MauiProgram
 {
-    public static class MauiProgram
+    public static MauiApp CreateMauiApp()
     {
-        public static MauiApp CreateMauiApp()
+        var builder = MauiApp.CreateBuilder();
+        builder.UseMauiApp<App>().ConfigureFonts(fonts =>
         {
-            var builder = MauiApp.CreateBuilder();
-            builder.UseMauiApp<App>().ConfigureFonts(fonts =>
-            {
-                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-            })
-                .UseMauiCommunityToolkit()
-                .Services
-                    .AddSingleton<IGpsLocationService, GpsLocationService>()
-                    .AddSingleton<IGpxFileService, GpxFileService>()
-                    .AddSingleton<MainViewModel>()
-                    .AddSingleton<MainPage>();
+            fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+            fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+        })
+            .UseMauiCommunityToolkit()
+            .Services
+                .AddSingleton<IGpsLocationService, GpsLocationService>()
+                .AddSingleton<ITrackFileService, TrackFileService>()
+                .AddSingleton<MainViewModel>()
+                .AddSingleton<MainPage>();
+        var logDirectory = FileSystemUtils.GetApllicationPublicDirectory();
+        GlobalDiagnosticsContext.Set("LogDir", logDirectory);
+        ConfigureNLog();
+        builder.Logging.ClearProviders();
+        builder.Logging.AddNLog();
 
 #if DEBUG
-            builder.Logging.AddDebug();
+        builder.Logging.AddDebug();
 #endif
-            return builder.Build();
-        }
+        return builder.Build();
+    }
+
+    /// <summary>
+    /// Настройка журналирования
+    /// </summary>
+    private static void ConfigureNLog()
+    {
+        var config = new LoggingConfiguration();
+
+        // Создаем целевую папку и файл "logs/app-log.txt" внутри нашей USB-доступной директории
+        var fileTarget = new FileTarget("usbFileTarget")
+        {
+            FileName = "${gdc:item=LogDir}/logs/app-log.txt",
+            Layout = "${longdate}|${level:uppercase=true}|${logger}|${message} ${exception:format=tostring}",
+            ArchiveEvery = FileArchivePeriod.Day,
+            MaxArchiveFiles = 7,
+            KeepFileOpen = false // Позволяет ОС Windows легче читать файл "на лету" при подключении
+        };
+
+        // Записываем всё от уровня Trace/Debug и выше
+        config.AddRule(NLog.LogLevel.Trace, NLog.LogLevel.Fatal, fileTarget);
+        LogManager.Configuration = config;
     }
 }
