@@ -28,15 +28,9 @@ public static class MauiProgram
                 .AddSingleton<MainViewModel>()
                 .AddSingleton<MainPage>();
         var logDirectory = FileSystemUtils.GetApllicationPublicDirectory();
-
-        // 2. Передаем путь в глобальный контекст NLog
         GlobalDiagnosticsContext.Set("LogDir", logDirectory);
-
-        // 3. Инициализируем конфигурацию NLog
         ConfigureNLog();
-
-        // 4. Подключаем NLog к стандартной системе логирования MAUI
-        builder.Logging.ClearProviders(); // Опционально: очищаем базовые провайдеры
+        builder.Logging.ClearProviders();
         builder.Logging.AddNLog();
 
 #if DEBUG

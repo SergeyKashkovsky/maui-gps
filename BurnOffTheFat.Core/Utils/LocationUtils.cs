@@ -95,21 +95,17 @@ public static class LocationUtils
                 maxAcceleration = 4.0;
                 break;
         }
-
+        // отскок по скорости
         if (currentSpeedKmH > maxSpeedKmH)
         {
             reason = $"Отскок: {currentSpeedKmH:F1} км/ч > {maxSpeedKmH:F1} км/ч";
             return false;
         }
 
-        // 4. Расчет ускорения относительно ГЕОМЕТРИЧЕСКОЙ скорости прошлого шага
-        // Мы гарантируем, что в lastValid.Speed записана именно геометрическая скорость,
-        // так как мы сами сохранили её туда на предыдущем шаге (см. конец метода)
         var previousGeomSpeedMS = lastPoint!.Speed.HasValue ? lastPoint.Speed.Value : 0.0;
 
         var acceleration = Math.Abs(currentSpeedMs - previousGeomSpeedMS) / timeDeltaSeconds;
-
-        // 5. Проверка на выброс по ускорению
+        // отскок по ускорению
         if (acceleration > maxAcceleration)
         {
             reason = $"Ускорение: {acceleration:F2} м/с² > {maxAcceleration:F2} км/ч";
