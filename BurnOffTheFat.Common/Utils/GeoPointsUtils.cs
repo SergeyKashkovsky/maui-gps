@@ -260,6 +260,7 @@ public static class GeoPointsUtils
     /// <returns></returns>
     public static double GetFilteredAltitude(this GeoPoint newPoint, IEnumerable<GeoPoint> lastPoints)
     {
+        //TODO: реализовать учет вертикальной погрешности - чем больше погрешность, тем ближе должно быть к среднему значению
         var alt = lastPoints.Select(x => x.Altitude);
         return GetFilteredParameter(newPoint.Altitude, alt);
     }
