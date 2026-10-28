@@ -1,4 +1,5 @@
 ﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Common.Utils;
 using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Utils;
@@ -16,6 +17,11 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     /// Интервал получения точек трека
     /// </summary>
     const int GetLocationInterval = 2;
+    /// <summary>
+    /// Количество точек для сглаживания выбросов
+    /// </summary>
+    const int FilterWindowSize = 5;
+
     private readonly List<Location> _trackPoints = [];
     /// <inheritdoc/>
     public List<Location> Points => _trackPoints;
@@ -76,6 +82,19 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         }
         _isListening = true;
     }
+
+    /// <summary>
+    /// Метод остановки прослушивания GPS.
+    /// </summary>
+    public void StopListen()
+    {
+        _isListening = false;
+        Geolocation.Default.StopListeningForeground();
+        Geolocation.Default.LocationChanged -= OnLocationChanged;
+#if ANDROID
+        AndriodPermissionService.StopAndroidGpsService();
+#endif
+    }
     /// <summary>
     /// Получаем все разрешения на работе в фоне
     /// </summary>
@@ -112,7 +131,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     }
 
     /// <summary>
-    /// Останавливает запись трека и сохраняет исходный трек-файл.
+    /// Останавливает запись трека
     /// </summary>
     public async Task StopRecordingAsync()
     {
@@ -127,6 +146,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     /// <summary>
     /// Проверяет статус GPS и получает координаты с разной точностью.
     /// </summary>
+    [Obsolete("Архитектура приложения не требует этого метода, но пока оставим")]
     public async Task<(Location? Coarse, Location? Fine)> GetTestLocationsAsync()
     {
         Location? coarse = null, fine = null;
@@ -148,8 +168,6 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         return (coarse, fine);
     }
 
-    
-
     /// <summary>
     /// Обработчик события получения точки от GPS
     /// </summary>
@@ -161,15 +179,30 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         // Если производится запись трека
         if (_isRecording)
         {
-            var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
+            var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1].ToGeoPoint() : null;
             _sourceTrackPoints.Add(e.Location);
-
-            if (!LocationUtils.IsPointAcceptable(e.Location, lastPoint, SpeedMode, logger, out var reason, out var distance))
+            var newPoint = e.Location.ToGeoPoint();
+            
+            // получаем все параметры пройденного пути
+            var distance = newPoint.GetDistanceM(lastPoint);
+            var timeDelta = newPoint.Timestamp.GetTimeDeltaSec(lastPoint?.Timestamp ?? newPoint.Timestamp);
+            var currentSpeedMS = newPoint.GetCurrentSpeedMS(lastPoint);
+            var acceleration = newPoint.GetAcceleration(lastPoint);
+            
+            // производим грубую фильтрацию
+            if (!GeoPointsUtils.CoarsePointFilter(
+                newPoint,
+                lastPoint,
+                currentSpeedMS.SpeedMSToKmH(),
+                acceleration,
+                distance,
+                SpeedMode,
+                out var reason
+                ))
             {
                 // Если точка нам не подходит, возвращаем параметры старой точки
                 DiscardedCount++;
                 logger.LogDebug("Точка не прошла фильтр: {reason}", reason);
-                System.Diagnostics.Debug.WriteLine($"[GPS Filter] {reason}");
                 LocationReceived?.Invoke(this, new LocationPointEventArgs
                 {
                     Location = new()
@@ -190,7 +223,17 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
 
             }
             TotalDistance += distance;
-            var ascent = e.Location.Altitude - lastPoint?.Altitude ?? 0;
+
+            // сглаживание высоты
+            var lastPoints = _trackPoints.TakeLast(FilterWindowSize).Select(x=> x.ToGeoPoint());
+            var filteredAltitude = newPoint.GetFilteredAltitude(lastPoints);
+
+            var ascent = filteredAltitude - lastPoint?.Altitude ?? 0;
+
+            logger.LogDebug("Рассчитана высота: {filteredAltitude}, исходная высота: {alt}, изменение высоты: {ascent}", filteredAltitude, e.Location.Altitude, ascent);
+
+            e.Location.Altitude = filteredAltitude;
+
             if (ascent < 0)
                 TotalDescentM += -ascent;
             else
@@ -210,14 +253,4 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         });
     }
 
-    /// <summary>
-    /// TODO: реализовать метод интерфейса остановки прослушивания
-    /// </summary>
-    public void Dispose()
-    {
-        Geolocation.Default.StopListeningForeground();
-#if ANDROID
-        AndriodPermissionService.StopAndroidGpsService();
-#endif
-    }
 }

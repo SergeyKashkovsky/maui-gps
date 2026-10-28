@@ -73,6 +73,10 @@ public interface IGpsLocationService
     /// <returns></returns>
     Task StopRecordingAsync();
     /// <summary>
+    /// Остановка прослушивания датчика GPS
+    /// </summary>
+    void StopListen();
+    /// <summary>
     /// Получение текущего значения местоположения: приблизительного и точного
     /// </summary>
     /// <returns></returns>
