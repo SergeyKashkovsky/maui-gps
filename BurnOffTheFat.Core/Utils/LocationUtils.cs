@@ -1,4 +1,6 @@
 ﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Common.Models;
+using BurnOffTheFat.Common.Utils;
 using BurnOffTheFat.Core.Services;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
@@ -9,115 +11,6 @@ namespace BurnOffTheFat.Core.Utils;
 
 public static class LocationUtils
 {
-    /// <summary>Максимально допустимая погрешность точки (в метрах).</summary>
-    public const double MaxAccuracyMeters = 20.0;
-
-    /// <summary>Минимальное расстояние между точками трека (в метрах).</summary>
-    public const double MinDistanceMeters = 1.5;
-
-    /// <summary>Максимальная скорость по умолчанию (км/ч).</summary>
-    public const double DefaultMaxSpeedKmH = 45.0;
-
-    /// <summary>
-    /// Проверяет, можно ли добавить точку в трек.
-    /// </summary>
-    /// <param name="newLocation">Новая точка.</param>
-    /// <param name="lastPoint">Предыдущая точка трека (может быть null).</param>
-    /// <param name="speedMode">Режим скорости для фильтра отскоков.</param>
-    /// <param name="reason">Причина отбраковки (для диагностики).</param>
-    public static bool IsPointAcceptable(
-        Location newLocation,
-        Location? lastPoint,
-        SpeedMode speedMode,
-        ILogger<GpsLocationService> logger,
-        out string reason,
-        out double distance)
-    {
-        reason = string.Empty;
-        distance = 0;
-
-        // Фильтр по точности
-        if (newLocation.Accuracy.HasValue && newLocation.Accuracy.Value > MaxAccuracyMeters)
-        {
-            reason = $"Точность {newLocation.Accuracy.Value:F1} м > {MaxAccuracyMeters} м";
-            return false;
-        }
-
-        // Фильтр по вертикальной точности
-        if (newLocation.VerticalAccuracy.HasValue && newLocation.VerticalAccuracy.Value > MaxAccuracyMeters)
-        {
-            reason = $"Вертикальная точность {newLocation.VerticalAccuracy.Value:F1} м > {MaxAccuracyMeters} м";
-            return false;
-        }
-
-        if (lastPoint == null)
-            return true;
-        
-        // убираем точки из прошлого
-        if(lastPoint.Timestamp > newLocation.Timestamp)
-        {
-            reason = $"Точка из прошлого: {lastPoint.Timestamp:F}(предыдущая точка) > {newLocation.Timestamp:F}(новая точка)";
-            return false;
-        }
-
-        // убираем, если стоим, или очень медленно двигаемся
-        distance = lastPoint.CalculateDistance3DMeters(newLocation);
-        if (distance < MinDistanceMeters)
-        {
-            reason = $"Расстояние между точками: {distance:F2} м < {MinDistanceMeters} м";
-            return false;
-        }
-
-        var timeDeltaSeconds = (newLocation.Timestamp - lastPoint.Timestamp).TotalSeconds;
-        // Убираем, если скорость минимально допустима
-        if (timeDeltaSeconds <= 0)
-        {
-            reason = $"Одновременные события или точка из прошлого: {timeDeltaSeconds:F2} с";
-            return false;
-        }
-        var currentSpeedMs = distance / timeDeltaSeconds;
-        var currentSpeedKmH = currentSpeedMs * 3.6;
-        // TODO: вынести профиль скоростей в Common
-        var maxSpeedKmH = 90;
-        var maxAcceleration = 8.0;
-        switch (speedMode)
-        {
-            case SpeedMode.Walking:
-                maxSpeedKmH = 15;
-                maxAcceleration = 1.2;
-                break;
-            case SpeedMode.Running:
-                maxSpeedKmH = 25;
-                maxAcceleration = 2.0;
-                break;
-            case SpeedMode.Cycling:
-                maxSpeedKmH = 45;
-                maxAcceleration = 4.0;
-                break;
-        }
-        // отскок по скорости
-        if (currentSpeedKmH > maxSpeedKmH)
-        {
-            reason = $"Отскок: {currentSpeedKmH:F1} км/ч > {maxSpeedKmH:F1} км/ч";
-            return false;
-        }
-
-        var previousGeomSpeedMS = lastPoint!.Speed.HasValue ? lastPoint.Speed.Value : 0.0;
-
-        var acceleration = Math.Abs(currentSpeedMs - previousGeomSpeedMS) / timeDeltaSeconds;
-        // отскок по ускорению
-        if (acceleration > maxAcceleration)
-        {
-            reason = $"Ускорение: {acceleration:F2} м/с² > {maxAcceleration:F2} км/ч";
-            return false;
-        }
-
-        logger.LogDebug("Рассчитаны параметры валидной точки: расстояние от предыдущей - {distance}м, время - {timeDeltaSeconds}с, скорость - {currentSpeedMs}км/ч, ускорение - {acceleration}м/с^2.{nl} Параметры старой точки: {@oldlocation}.{nl} Параметры новой точки: {@newlocation}", distance, timeDeltaSeconds, currentSpeedKmH, acceleration, Environment.NewLine, lastPoint, Environment.NewLine, newLocation);
-
-        newLocation.Speed = currentSpeedMs;
-
-        return true;
-    }
     /// <summary>
     /// Форматирует координаты для отображения.
     /// </summary>
@@ -212,26 +105,43 @@ public static class LocationUtils
         return locations;
     }
 
+    #region Методы преобразования Location в GeoPoint и назад
     /// <summary>
-    /// Вычисляет расстояние между двумя точками с учетом перепада высот.
+    /// Обратное преобразование
     /// </summary>
-    /// <returns>Расстояние в метрах.</returns>
-    public static double CalculateDistance3DMeters(this Location start, Location end)
-    {
-        // 1. Получаем плоское расстояние по дуге большого круга (в километрах)
-        double flatDistanceKm = Location.CalculateDistance(start, end, DistanceUnits.Kilometers);
+    /// <param name="point"></param>
+    /// <returns></returns>
+    public static Location ToLocation(this GeoPoint point)
+        => new()
+        {
+            Accuracy = point.Accuracy,
+            Altitude = point.Altitude,
+            Course = point.Course,
+            Latitude = point.Latitude,
+            AltitudeReferenceSystem = AltitudeReferenceSystem.Geoid,
+            Longitude = point.Longitude,
+            Speed = point.Speed,
+            Timestamp = point.Timestamp,
+            VerticalAccuracy = point.VerticalAccuracy,
+        };
 
-        // Переводим в метры
-        double flatDistanceMeters = flatDistanceKm * 1000.0;
+    /// <summary>
+    /// Прямое преобразование
+    /// </summary>
+    /// <param name="point"></param>
+    /// <returns></returns>
+    public static GeoPoint ToGeoPoint(this Location point)
+        => new()
+        {
+            Accuracy = point.Accuracy,
+            Altitude = point.Altitude,
+            Course = point.Course,
+            Latitude = point.Latitude,
+            Longitude = point.Longitude,
+            Speed = point.Speed,
+            Timestamp = point.Timestamp,
+            VerticalAccuracy = point.VerticalAccuracy,
+        };
 
-        // 2. Считаем разницу высот (если высота не указана, считаем её равной 0)
-        double startAltitude = start.Altitude ?? 0.0;
-        double endAltitude = end.Altitude ?? 0.0;
-        double heightDelta = endAltitude - startAltitude;
-
-        // 3. Применяем теорему Пифагора для трехмерного пространства
-        double distance3D = Math.Sqrt(Math.Pow(flatDistanceMeters, 2) + Math.Pow(heightDelta, 2));
-
-        return distance3D;
-    }
+    #endregion
 }
