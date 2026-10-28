@@ -17,6 +17,11 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     /// Интервал получения точек трека
     /// </summary>
     const int GetLocationInterval = 2;
+    /// <summary>
+    /// Количество точек для сглаживания выбросов
+    /// </summary>
+    const int FilterWindowSize = 5;
+
     private readonly List<Location> _trackPoints = [];
     /// <inheritdoc/>
     public List<Location> Points => _trackPoints;
@@ -218,8 +223,17 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
 
             }
             TotalDistance += distance;
-            // TODO: сглаживание трека по горизонтали и вертикали
-            var ascent = e.Location.Altitude - lastPoint?.Altitude ?? 0;
+
+            // сглаживание высоты
+            var lastPoints = _trackPoints.TakeLast(FilterWindowSize).Select(x=> x.ToGeoPoint());
+            var filteredAltitude = newPoint.GetFilteredAltitude(lastPoints);
+
+            var ascent = filteredAltitude - lastPoint?.Altitude ?? 0;
+
+            logger.LogDebug("Рассчитана высота: {filteredAltitude}, исходная высота: {alt}, изменение высоты: {ascent}", filteredAltitude, e.Location.Altitude, ascent);
+
+            e.Location.Altitude = filteredAltitude;
+
             if (ascent < 0)
                 TotalDescentM += -ascent;
             else

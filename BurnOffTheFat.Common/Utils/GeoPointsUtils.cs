@@ -252,5 +252,29 @@ public static class GeoPointsUtils
         var oldSpeed = oldPoint.Speed.HasValue ? oldPoint.Speed.Value : 0.0;
         return Math.Abs(GetCurrentSpeedMS(newPoint, oldPoint) - oldSpeed) / GetTimeDeltaSec(newPoint.Timestamp, oldPoint.Timestamp);
     }
-
+    /// <summary>
+    /// Сглаживаем погрешность измерений высоты по коллекции предыдущих точек
+    /// </summary>
+    /// <param name="newPoint">новая точка</param>
+    /// <param name="lastPoints">коллекция предыдущих валидных точек</param>
+    /// <returns></returns>
+    public static double GetFilteredAltitude(this GeoPoint newPoint, IEnumerable<GeoPoint> lastPoints)
+    {
+        var alt = lastPoints.Select(x => x.Altitude);
+        return GetFilteredParameter(newPoint.Altitude, alt);
+    }
+    /// <summary>
+    /// Сглаживаем погрешность измерения параметра относительно коллекции предыдущих измерений
+    /// </summary>
+    /// <param name="newParameter">значение нового параметра</param>
+    /// <param name="oldParameters">значения предыдущих измерений</param>
+    /// <returns></returns>
+    private static double GetFilteredParameter(double? newParameter, IEnumerable<double?> oldParameters)
+    {
+        var avr = oldParameters.Where(x => x != null).Average() ?? 0.0;
+        if (newParameter is null) return avr;
+        var notNull = oldParameters.Select(x => x ?? avr).ToList();
+        notNull.Add(newParameter.Value);
+        return notNull.Average();
+    }
 }
