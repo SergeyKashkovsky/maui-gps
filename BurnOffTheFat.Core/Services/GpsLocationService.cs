@@ -84,7 +84,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     }
 
     /// <summary>
-    /// Метод остановки прослушивания GPS. TODO: вынести в интерфейс
+    /// Метод остановки прослушивания GPS.
     /// </summary>
     public void StopListen()
     {
