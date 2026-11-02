@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <rect width="500" height="500" fill="#512BD4" />
+  
+  <g>
+    <text 
+      x="250" 
+      y="215" 
+      font-family="Arial, sans-serif" 
+      font-weight="bold" 
+      font-size="76" 
+      fill="#FFFFFF" 
+      text-anchor="middle" 
+      dominant-baseline="middle">
+      GPS трекер
+    </text>
+    <text 
+      x="250" 
+      y="295" 
+      font-family="Arial, sans-serif" 
+      font-weight="bold" 
+      font-size="56" 
+      fill="#FFFFFF" 
+      text-anchor="middle" 
+      dominant-baseline="middle">
+      (прототип)
+    </text>
+  </g>
+</svg>
