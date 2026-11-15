@@ -43,6 +43,8 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     /// <inheritdoc/>
     public SpeedMode SpeedMode { get; set; }
 
+    private RealtimeGpsKalmanFilter _filter;
+
     private bool _isListening;
     /// <inheritdoc/>
     public bool IsListening => _isListening;
@@ -80,6 +82,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         {
             Geolocation.Default.LocationChanged -= OnLocationChanged;
         }
+        _filter = new(SpeedMode);
         _isListening = true;
     }
 
@@ -168,6 +171,8 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         return (coarse, fine);
     }
 
+    
+
     /// <summary>
     /// Обработчик события получения точки от GPS
     /// </summary>
@@ -222,6 +227,13 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
                 return;
 
             }
+            // Корректировка фильтром Калмана
+            _filter.SetProfile(SpeedMode);
+            (newPoint.Latitude, newPoint.Longitude) = _filter.Process(newPoint);
+            // Пересчет расстояния и скорости
+            distance = newPoint.GetDistanceM(lastPoint);
+            currentSpeedMS = newPoint.GetCurrentSpeedMS(lastPoint);
+
             TotalDistance += distance;
 
             // сглаживание высоты

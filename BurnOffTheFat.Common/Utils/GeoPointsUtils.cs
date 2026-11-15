@@ -8,9 +8,9 @@ namespace BurnOffTheFat.Common.Utils;
 public static class GeoPointsUtils
 {
     /// <summary>Максимально допустимая горизонтальная погрешность точки (в метрах).</summary>
-    public const double MaxAccuracyMeters = 20.0;
+    public const double MaxAccuracyMeters = 10.0;
     /// <summary>Максимально допустимая вертикальная погрешность точки (в метрах).</summary>
-    public const double MaxVerticalAccuracyMeters = 20.0;
+    public const double MaxVerticalAccuracyMeters = 10.0;
 
     /// <summary>Минимальное расстояние между точками трека (в метрах).</summary>
     public const double MinDistanceMeters = 1.5;
@@ -19,7 +19,7 @@ public static class GeoPointsUtils
     /// <summary>
     /// Максимальная скорость при ходьбе
     /// </summary>
-    public const int MaxSpeedKmHWalking = 15;
+    public const int MaxSpeedKmHWalking = 10;
     /// <summary>
     /// Максимальное ускорение при ходьбе
     /// </summary>
@@ -27,7 +27,7 @@ public static class GeoPointsUtils
     /// <summary>
     /// Максимальная скорость при беге
     /// </summary>
-    public const int MaxSpeedKmHRunning = 25;
+    public const int MaxSpeedKmHRunning = 20;
     /// <summary>
     /// Максимальное ускорение при беге
     /// </summary>
@@ -81,6 +81,9 @@ public static class GeoPointsUtils
     /// <summary>
     /// Вычисляет расстояние между двумя точками с учетом перепада высот.
     /// </summary>
+    /// <remarks>
+    /// Выяснилось, что погрешность по высоте дает большую суммарную погрешность - убираем из расчета расстояния
+    /// </remarks>
     /// <returns>Расстояние в метрах.</returns>
     public static double CalculateDistance3DMeters(this GeoPoint start, GeoPoint end)
     {
@@ -216,7 +219,7 @@ public static class GeoPointsUtils
     public static double GetDistanceM(this GeoPoint newPoint, GeoPoint? oldPoint)
     {
         if (oldPoint == null) return 0.0;
-        return CalculateDistance3DMeters(oldPoint, newPoint);
+        return CalculateDistanceInMeters(oldPoint, newPoint);
     }
 
     /// <summary>
@@ -237,7 +240,7 @@ public static class GeoPointsUtils
     public static double GetCurrentSpeedMS(this GeoPoint newPoint, GeoPoint? oldPoint)
     {
         if (oldPoint == null) return 0.0;
-        return CalculateDistance3DMeters(newPoint, oldPoint) / GetTimeDeltaSec(newPoint.Timestamp, oldPoint.Timestamp);
+        return CalculateDistanceInMeters(newPoint, oldPoint) / GetTimeDeltaSec(newPoint.Timestamp, oldPoint.Timestamp);
     }
 
     /// <summary>
