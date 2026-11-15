@@ -1,5 +1,6 @@
 ﻿using BurnOffTheFat.Common.Enums;
 using BurnOffTheFat.Common.Models;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace BurnOffTheFat.Common.Utils;
 /// <summary>
@@ -24,17 +25,14 @@ public class RealtimeGpsKalmanFilter
 
     public RealtimeGpsKalmanFilter(SpeedMode initialProfile)
     {
-        SetProfile(initialProfile);
+        InitProfile(initialProfile);
     }
-
     /// <summary>
     /// Устанавливает пороговое значение шума в зависимости от профиля скорости
     /// </summary>
     /// <param name="profile"></param>
-    public void SetProfile(SpeedMode profile)
+    public void InitProfile(SpeedMode profile)
     {
-        if(_currentProfile == profile) return;
-        _currentProfile = profile;
         _qMetresPerSecond = profile switch
         {
             SpeedMode.Walking => 1.5f,
@@ -43,6 +41,17 @@ public class RealtimeGpsKalmanFilter
             SpeedMode.Motorized => 12.0f,
             _ => 12.0f
         };
+    }
+
+    /// <summary>
+    /// Обновление параметров профайла, если он изменился
+    /// </summary>
+    /// <param name="profile"></param>
+    public void SetProfile(SpeedMode profile)
+    {
+        if(_currentProfile == profile) return;
+        _currentProfile = profile;
+        InitProfile(profile);
     }
     /// <summary>
     /// Сброс 

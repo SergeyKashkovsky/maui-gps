@@ -227,22 +227,26 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
                 return;
 
             }
+            logger.LogDebug("Точка прошла фильтр: {time}", e.Location.Timestamp.ToUnixTimeMilliseconds());
             // Корректировка фильтром Калмана
             _filter.SetProfile(SpeedMode);
             (newPoint.Latitude, newPoint.Longitude) = _filter.Process(newPoint);
             // Пересчет расстояния и скорости
-            distance = newPoint.GetDistanceM(lastPoint);
-            currentSpeedMS = newPoint.GetCurrentSpeedMS(lastPoint);
+            var newDistance = newPoint.GetDistanceM(lastPoint);
+            var newCurrentSpeedMS = newPoint.GetCurrentSpeedMS(lastPoint);
+            e.Location.Latitude = newPoint.Latitude;
+            e.Location.Longitude = newPoint.Longitude;
+            logger.LogDebug("Пересчет расстояния и скорости. Старые значения: {dist}м, {sp}м/с. Новые значения: {dist}м, {sp}м/с. Скорость по GPS: {speed}", distance, currentSpeedMS, newDistance, newCurrentSpeedMS, e.Location.Speed);
+            distance = newDistance;
+            currentSpeedMS = newCurrentSpeedMS;
 
-            TotalDistance += distance;
+            TotalDistance += newDistance;
 
             // сглаживание высоты
             var lastPoints = _trackPoints.TakeLast(FilterWindowSize).Select(x=> x.ToGeoPoint());
             var filteredAltitude = newPoint.GetFilteredAltitude(lastPoints);
 
             var ascent = filteredAltitude - lastPoint?.Altitude ?? 0;
-
-            logger.LogDebug("Рассчитана высота: {filteredAltitude}, исходная высота: {alt}, изменение высоты: {ascent}", filteredAltitude, e.Location.Altitude, ascent);
 
             e.Location.Altitude = filteredAltitude;
 
