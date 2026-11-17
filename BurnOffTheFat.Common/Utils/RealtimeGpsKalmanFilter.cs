@@ -35,7 +35,7 @@ public class RealtimeGpsKalmanFilter
     {
         _qMetresPerSecond = profile switch
         {
-            SpeedMode.Walking => 1.5f,
+            SpeedMode.Walking => 5f,
             SpeedMode.Running => 3.0f,
             SpeedMode.Cycling => 6.0f,
             SpeedMode.Motorized => 12.0f,
