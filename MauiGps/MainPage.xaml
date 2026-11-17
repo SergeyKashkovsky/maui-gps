@@ -7,7 +7,7 @@
 
     <VerticalStackLayout Padding="30" Spacing="20"
                          HorizontalOptions="Center" VerticalOptions="Center">
-
+        <Label Text="версия 0.1" FontSize="10" HorizontalTextAlignment="Start"/>
         <!--Интерфейс трека-->
         <Label Text="{Binding Status}" FontSize="18" FontAttributes="Bold"/>
         <Picker ItemsSource="{Binding SpeedModes}"
