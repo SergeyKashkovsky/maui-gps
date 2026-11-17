@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using BurnOffTheFat.Common.Enums;
-using BurnOffTheFat.Common.Models;
 using BurnOffTheFat.Common.Utils;
 using BurnOffTheFat.Core.Utils;
 
@@ -24,6 +23,7 @@ public class GpsTests
         var filter = new RealtimeGpsKalmanFilter(SpeedMode.Walking);
         //filter = null;
         var trackPoints = new List<Location>();
+        var speedModel = new List<(double, double)>();
         foreach(var point in points!)
         {
             var filterResult = point.CheckNewPoint(trackPoints, SpeedMode.Walking, filter, 5);
@@ -38,9 +38,12 @@ public class GpsTests
             
             totalDistance += filterResult.DistanceM;
             trackPoints.Add(filterResult.Result);
+            speedModel.Add(new(filterResult.CurrentSpeed, filterResult.Result.Speed ?? 0));
         }
 
         var gpx = LocationUtils.BuildGpx(trackPoints);
+        var max = speedModel.Max(x=> x.Item1);
+        var max2 = speedModel.Max(x => x.Item2);
 
     }
 

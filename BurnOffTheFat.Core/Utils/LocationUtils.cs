@@ -1,11 +1,8 @@
 ﻿using BurnOffTheFat.Common.Enums;
 using BurnOffTheFat.Common.Models;
 using BurnOffTheFat.Common.Utils;
-using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Models;
-using Microsoft.Extensions.Logging;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml.Linq;
 
