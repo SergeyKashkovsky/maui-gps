@@ -15,6 +15,9 @@ public class GpsTests
     {
     }
 
+    /// <summary>
+    /// Эмуляция записи трека из коллекции точек
+    /// </summary>
     [Test]
     public void TrackTest()
     {
