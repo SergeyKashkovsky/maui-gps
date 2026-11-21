@@ -2,6 +2,7 @@
 <Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:GpsTrackerPrototype"
+             xmlns:conv="clr-namespace:GpsTrackerPrototype.Converters"
              x:Class="GpsTrackerPrototype.App">
     <Application.Resources>
         <ResourceDictionary>
@@ -9,6 +10,7 @@
                 <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <conv:SpeedModeToDisplayConverter x:Key="SpeedModeToDisplay"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

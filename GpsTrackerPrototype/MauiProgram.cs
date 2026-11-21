@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CommunityToolkit.Maui;
+using GpsTrackerPrototype.ViewModels;
+using GpsTrackerPrototype.Views;
+using Microsoft.Extensions.Logging;
 
 namespace GpsTrackerPrototype
 {
@@ -13,7 +16,14 @@ namespace GpsTrackerPrototype
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                });
+                })
+                .UseMauiCommunityToolkit()
+                .Services
+                .AddTransient<MainViewModel>()
+                .AddTransient<MainPage>()
+                .AddTransient<SecondPage>()
+                .AddTransient<SecondViewModel>();
+
 
 #if DEBUG
     		builder.Logging.AddDebug();

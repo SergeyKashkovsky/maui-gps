@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+            xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+            xmlns:vm="clr-namespace:GpsTrackerPrototype.ViewModels"
+            x:Class="GpsTrackerPrototype.Views.SecondPage"
+            Title="Вторая">
+
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Прокручиваемый контент -->
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout Padding="20" Spacing="15">
+                <Label Text="Заголовок" FontSize="24" FontAttributes="Bold" />
+                <Label Text="Здесь будет основной контент, который можно прокручивать." />
+                <!-- ... много контента ... -->
+                <BoxView HeightRequest="800" Color="LightGray" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <!-- Фиксированный футер -->
+        <Border Grid.Row="1"
+            StrokeThickness="1"
+            Stroke="#E0E0E0"
+            BackgroundColor="{AppThemeBinding Light=White, Dark=#1C1C1C}">
+            <Grid Padding="12" ColumnDefinitions="*,*" ColumnSpacing="12">
+
+                <!-- Кнопка "Начать" слева -->
+                <Button Grid.Column="0"
+                    Text="Закончить"
+                    Command="{Binding StopCommand}"
+                    HorizontalOptions="Fill"
+                    Margin="20,0,10,0"
+                    HeightRequest="80"
+                    />
+            </Grid>
+        </Border>
+
+    </Grid>
+</ContentPage>
