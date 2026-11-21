@@ -4,6 +4,7 @@
   <Project Path="../GpsTrackerPrototype/GpsTrackerPrototype.csproj" Id="639a543c-3e3e-43a2-9b51-79080ab606d9">
     <Deploy Solution="Debug|*" />
   </Project>
+  <Project Path="../BurnOffTreFat.Common.Tests/BurnOffTreFat.Common.Tests.csproj" Id="3043162c-c3f2-42d3-a6f6-458bfcc79793" />
   <Project Path="MauiGps.csproj">
     <Deploy />
   </Project>

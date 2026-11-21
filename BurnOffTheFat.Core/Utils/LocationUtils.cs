@@ -1,8 +1,7 @@
 ﻿using BurnOffTheFat.Common.Enums;
 using BurnOffTheFat.Common.Models;
 using BurnOffTheFat.Common.Utils;
-using BurnOffTheFat.Core.Services;
-using Microsoft.Extensions.Logging;
+using BurnOffTheFat.Core.Models;
 using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
@@ -144,4 +143,83 @@ public static class LocationUtils
         };
 
     #endregion
+
+    /// <summary>
+    /// Проверяем достоверность новой точки, фильтруем и корректируем по широте и долготе
+    /// </summary>
+    /// <param name="newLocation"></param>
+    /// <param name="speedMode"></param>
+    /// <param name="filter"></param>
+    /// <param name="lastLocation"></param>
+    /// <returns></returns>
+    public static CheckNewPointResult CheckNewPoint(this Location newLocation, List<Location> trackPoints, SpeedMode speedMode, RealtimeGpsKalmanFilter? filter, int windowSize)
+    {
+        var lastLocation = trackPoints.Count > 0 ? trackPoints[^1] : null;
+        var lastPoint = lastLocation?.ToGeoPoint();
+        var newPoint = newLocation.ToGeoPoint();
+
+        // получаем все параметры пройденного пути
+        var distance = newPoint.GetDistanceM(lastPoint);
+        var timeDelta = newPoint.Timestamp.GetTimeDeltaSec(lastPoint?.Timestamp ?? newPoint.Timestamp);
+        var currentSpeedMS = newPoint.GetCurrentSpeedMS(lastPoint);
+        var acceleration = newPoint.GetAcceleration(lastPoint);
+
+        var result = new CheckNewPointResult
+        {
+            Result = new(),
+            Reason = string.Empty,
+            DistanceMBeforeFilter = distance,
+            CurrentSpeedBeforeFilter = currentSpeedMS,
+            AltitudeBeforeFilter = newLocation?.Altitude ?? 0
+        };
+
+        // производим грубую фильтрацию
+        if (!GeoPointsUtils.CoarsePointFilter(
+            newPoint,
+            lastPoint,
+            currentSpeedMS.SpeedMSToKmH(),
+            acceleration,
+            distance,
+            speedMode,
+            out var reason
+            ))
+        {
+            // Если точка нам не подходит, возвращаем параметры старой точки
+            result.Result = new()
+            {
+                Accuracy = newLocation!.Accuracy,
+                Altitude = lastPoint?.Altitude ?? newLocation.Altitude,
+                Latitude = lastPoint?.Latitude ?? newLocation.Latitude,
+                Longitude = lastPoint?.Longitude ?? newLocation.Longitude,
+                Speed = lastPoint?.Speed,
+            };
+            result.Success = false;
+            result.Reason = reason;
+            return result;
+        }
+        // Корректировка фильтром Калмана
+        if(filter != null)
+        {
+            filter.SetProfile(speedMode);
+            (newPoint.Latitude, newPoint.Longitude) = filter.Process(newPoint);
+        }
+        
+        // Пересчет расстояния и скорости
+        result.DistanceM = newPoint.GetDistanceM(lastPoint);
+        result.CurrentSpeed = newPoint.GetCurrentSpeedMS(lastPoint);
+        newLocation!.Latitude = newPoint.Latitude;
+        newLocation.Longitude = newPoint.Longitude;
+
+        // сглаживание высоты
+        var lastPoints = trackPoints.TakeLast(windowSize).Select(x => x.ToGeoPoint());
+
+        newLocation.Altitude = newPoint.GetFilteredAltitude(lastPoints);
+
+        result.Acsent = newLocation.Altitude - lastPoint?.Altitude ?? 0;
+
+        result.Result = newLocation;
+        result.Success = true;
+        return result;
+        
+    }
 }

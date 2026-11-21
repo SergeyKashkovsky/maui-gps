@@ -43,6 +43,8 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
     /// <inheritdoc/>
     public SpeedMode SpeedMode { get; set; }
 
+    private RealtimeGpsKalmanFilter _filter;
+
     private bool _isListening;
     /// <inheritdoc/>
     public bool IsListening => _isListening;
@@ -80,6 +82,7 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         {
             Geolocation.Default.LocationChanged -= OnLocationChanged;
         }
+        _filter = new(SpeedMode);
         _isListening = true;
     }
 
@@ -168,6 +171,8 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         return (coarse, fine);
     }
 
+    
+
     /// <summary>
     /// Обработчик события получения точки от GPS
     /// </summary>
@@ -179,40 +184,20 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
         // Если производится запись трека
         if (_isRecording)
         {
-            var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1].ToGeoPoint() : null;
+            var lastPoint = _trackPoints.Count > 0 ? _trackPoints[^1] : null;
             _sourceTrackPoints.Add(e.Location);
-            var newPoint = e.Location.ToGeoPoint();
-            
-            // получаем все параметры пройденного пути
-            var distance = newPoint.GetDistanceM(lastPoint);
-            var timeDelta = newPoint.Timestamp.GetTimeDeltaSec(lastPoint?.Timestamp ?? newPoint.Timestamp);
-            var currentSpeedMS = newPoint.GetCurrentSpeedMS(lastPoint);
-            var acceleration = newPoint.GetAcceleration(lastPoint);
-            
+
+            var filterResult = e.Location.CheckNewPoint(_trackPoints, SpeedMode, _filter, FilterWindowSize);
+
             // производим грубую фильтрацию
-            if (!GeoPointsUtils.CoarsePointFilter(
-                newPoint,
-                lastPoint,
-                currentSpeedMS.SpeedMSToKmH(),
-                acceleration,
-                distance,
-                SpeedMode,
-                out var reason
-                ))
+            if (!filterResult.Success)
             {
                 // Если точка нам не подходит, возвращаем параметры старой точки
                 DiscardedCount++;
-                logger.LogDebug("Точка не прошла фильтр: {reason}", reason);
+                logger.LogDebug("Точка не прошла фильтр по причине: {reason}. Параметры: {@fr}", filterResult.Reason, filterResult);
                 LocationReceived?.Invoke(this, new LocationPointEventArgs
                 {
-                    Location = new()
-                    {
-                        Accuracy = e.Location.Accuracy,
-                        Altitude = lastPoint?.Altitude ?? e.Location.Altitude,
-                        Latitude = lastPoint?.Latitude ?? e.Location.Latitude,
-                        Longitude = lastPoint?.Longitude ?? e.Location.Longitude,
-                        Speed = lastPoint?.Speed,
-                    },
+                    Location = filterResult.Result,
                     PointCount = _trackPoints.Count,
                     DiscardedCount = DiscardedCount,
                     TotalAscentM = (int)TotalAscentM,
@@ -222,22 +207,19 @@ public class GpsLocationService(ILogger<GpsLocationService> logger) : IGpsLocati
                 return;
 
             }
-            TotalDistance += distance;
+            logger.LogDebug("Точка прошла фильтр: {@fr}", filterResult.Result);
 
-            // сглаживание высоты
-            var lastPoints = _trackPoints.TakeLast(FilterWindowSize).Select(x=> x.ToGeoPoint());
-            var filteredAltitude = newPoint.GetFilteredAltitude(lastPoints);
+            e.Location.Altitude = filterResult.Result.Altitude;
+            e.Location.Longitude = filterResult.Result.Longitude;
+            e.Location.Latitude = filterResult.Result.Latitude;
+            e.Location.Speed = filterResult.Result.Speed;
 
-            var ascent = filteredAltitude - lastPoint?.Altitude ?? 0;
+            TotalDistance += filterResult.DistanceM;
 
-            logger.LogDebug("Рассчитана высота: {filteredAltitude}, исходная высота: {alt}, изменение высоты: {ascent}", filteredAltitude, e.Location.Altitude, ascent);
-
-            e.Location.Altitude = filteredAltitude;
-
-            if (ascent < 0)
-                TotalDescentM += -ascent;
+            if (filterResult.Acsent < 0)
+                TotalDescentM += -filterResult.Acsent;
             else
-                TotalAscentM += ascent;
+                TotalAscentM += filterResult.Acsent;
 
             _trackPoints.Add(e.Location);
         }
