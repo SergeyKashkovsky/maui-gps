@@ -33,7 +33,7 @@ public partial class MainViewModel : ObservableObject
     private async Task StartAsync()
     {
         // Передаём выбранный режим на вторую страницу через параметр
-        await Shell.Current.GoToAsync(nameof(Views.SecondPage),
+        await Shell.Current.GoToAsync(nameof(Views.TrainingPage),
             new Dictionary<string, object>
             {
                 ["SpeedMode"] = SelectedSpeedMode

@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 namespace GpsTrackerPrototype.ViewModels;
 
 [QueryProperty(nameof(CurrentSpeedMode), "SpeedMode")]
-public partial class SecondViewModel : ObservableObject
+public partial class TrainingViewModel : ObservableObject
 {
     [ObservableProperty]
     private SpeedMode _currentSpeedMode;

@@ -21,8 +21,8 @@ namespace GpsTrackerPrototype
                 .Services
                 .AddTransient<MainViewModel>()
                 .AddTransient<MainPage>()
-                .AddTransient<SecondPage>()
-                .AddTransient<SecondViewModel>();
+                .AddTransient<TrainingPage>()
+                .AddTransient<TrainingViewModel>();
 
 
 #if DEBUG
