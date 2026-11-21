@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <!-- Светлый фон холста -->
+  <rect width="500" height="500" fill="#eef1f6" />
+  
+  <!-- Фиолетовый круг (радиус 230px) -->
+  <circle cx="250" cy="250" r="230" fill="#512BD4" />
+
+  <!-- Поворот текста на -45 градусов вокруг центра (250, 250) -->
+  <g transform="rotate(-45 250 250)">
+    <!-- Первая строка: "GPS трекер" (увеличен до 52px) -->
+    <text 
+      x="250" 
+      y="238" 
+      font-family="Arial, sans-serif" 
+      font-weight="bold" 
+      font-size="52" 
+      fill="#FFFFFF" 
+      text-anchor="middle" 
+      dominant-baseline="middle">
+      GPS трекер
+    </text>
+    
+    <!-- Вторая строка: "(прототип)" (увеличена до 36px, придвинута ближе) -->
+    <text 
+      x="250" 
+      y="284" 
+      font-family="Arial, sans-serif" 
+      font-weight="bold" 
+      font-size="36" 
+      fill="#FFFFFF" 
+      text-anchor="middle" 
+      dominant-baseline="middle">
+      (прототип)
+    </text>
+  </g>
+</svg>
