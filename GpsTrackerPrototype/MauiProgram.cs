@@ -3,33 +3,35 @@ using GpsTrackerPrototype.ViewModels;
 using GpsTrackerPrototype.Views;
 using Microsoft.Extensions.Logging;
 
-namespace GpsTrackerPrototype
+namespace GpsTrackerPrototype;
+
+/// <summary>
+/// Точка входа в программу
+/// </summary>
+public static class MauiProgram
 {
-    public static class MauiProgram
+    public static MauiApp CreateMauiApp()
     {
-        public static MauiApp CreateMauiApp()
-        {
-            var builder = MauiApp.CreateBuilder();
-            builder
-                .UseMauiApp<App>()
-                .ConfigureFonts(fonts =>
-                {
-                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-                })
-                .UseMauiCommunityToolkit()
-                .Services
-                .AddTransient<MainViewModel>()
-                .AddTransient<MainPage>()
-                .AddTransient<TrainingPage>()
-                .AddTransient<TrainingViewModel>();
+        var builder = MauiApp.CreateBuilder();
+        builder
+            .UseMauiApp<App>()
+            .ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+            })
+            .UseMauiCommunityToolkit()
+            .Services
+            .AddTransient<MainViewModel>()
+            .AddTransient<MainPage>()
+            .AddTransient<TrainingPage>()
+            .AddTransient<TrainingViewModel>();
 
 
 #if DEBUG
-    		builder.Logging.AddDebug();
+		builder.Logging.AddDebug();
 #endif
 
-            return builder.Build();
-        }
+        return builder.Build();
     }
 }

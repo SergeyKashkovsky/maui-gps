@@ -1,7 +1,9 @@
 ﻿using GpsTrackerPrototype.ViewModels;
 
 namespace GpsTrackerPrototype.Views;
-
+/// <summary>
+/// Оено тренировки
+/// </summary>
 public partial class TrainingPage : ContentPage
 {
     /// <summary>

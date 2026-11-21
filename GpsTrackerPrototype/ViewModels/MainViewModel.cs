@@ -1,12 +1,12 @@
 ﻿using BurnOffTheFat.Common.Enums;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows.Input;
 
 namespace GpsTrackerPrototype.ViewModels;
 
+/// <summary>
+/// Модель представления главного окна
+/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     /// <summary>
@@ -26,9 +26,13 @@ public partial class MainViewModel : ObservableObject
     /// <param name="value"></param>
     partial void OnSelectedSpeedModeChanged(SpeedMode value)
     {
-        
+        //TODO: обработка режима
     }
 
+    /// <summary>
+    /// Обработчик нажатия на кнопку запуска тернировки
+    /// </summary>
+    /// <returns></returns>
     [RelayCommand]
     private async Task StartAsync()
     {

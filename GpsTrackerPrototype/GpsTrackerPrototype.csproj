@@ -56,7 +56,6 @@
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
-		<MauiImage Update="Resources\Images\dotnet_bot.png" Resize="True" BaseSize="300,185" />
 		
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
@@ -81,6 +80,7 @@
 
 	<ItemGroup>
 	  <Folder Include="Models\" />
+	  <Folder Include="Resources\Images\" />
 	</ItemGroup>
 
 	<ItemGroup>

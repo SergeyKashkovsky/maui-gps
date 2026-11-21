@@ -3,6 +3,9 @@ using System.Globalization;
 
 namespace GpsTrackerPrototype.Converters;
 
+/// <summary>
+/// Преобразование режима тренировки в текст, отображаемый на экране приложения
+/// </summary>
 public sealed class SpeedModeToDisplayConverter : IValueConverter
 {
     /// <inheritdoc/>
