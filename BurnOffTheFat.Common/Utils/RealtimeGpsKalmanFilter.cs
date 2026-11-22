@@ -3,7 +3,7 @@ using BurnOffTheFat.Common.Models;
 
 namespace BurnOffTheFat.Common.Utils;
 /// <summary>
-/// Фильтр КЛмана для сглаживания трека
+/// Фильтр Калмана для сглаживания трека
 /// </summary>
 public class RealtimeGpsKalmanFilter
 {

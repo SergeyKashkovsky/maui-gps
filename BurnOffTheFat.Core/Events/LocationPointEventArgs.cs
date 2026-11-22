@@ -10,11 +10,11 @@ public class LocationPointEventArgs
     /// </summary>
     public Location Location { get; init; } = default!;
     /// <summary>
-    /// Количество записанных точек TODO: зачем?
+    /// Количество записанных точек
     /// </summary>
     public int PointCount { get; init; }
     /// <summary>
-    /// Количество отброшенных точек TODO: зачем?
+    /// Количество отброшенных точек
     /// </summary>
     public int DiscardedCount { get; init; }
     /// <summary>
@@ -29,4 +29,8 @@ public class LocationPointEventArgs
     /// Накопленный спуск
     /// </summary>
     public int TotalDescentM { get; init; }
+    /// <summary>
+    /// Признак того, что данная точка новая и подходит для записи в трек
+    /// </summary>
+    public bool IsPointValid { get; init; }
 }

@@ -7,10 +7,6 @@
              x:DataType="vm:MainViewModel"
              Title="Главная">
 
-    <ContentPage.BindingContext>
-        <vm:MainViewModel />
-    </ContentPage.BindingContext>
-
     <Grid RowDefinitions="*,Auto">
 
         <!-- Прокручиваемый контент -->
