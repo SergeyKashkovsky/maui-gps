@@ -12,6 +12,7 @@
         <!-- Прокручиваемый контент -->
         <ScrollView Grid.Row="0">
             <VerticalStackLayout Padding="20" Spacing="15">
+                <Label Text="версия 0.1" FontSize="10" HorizontalTextAlignment="Start"/>
                 <Label Text="Заголовок" FontSize="24" FontAttributes="Bold" />
                 <Label Text="Здесь будет основной контент, который можно прокручивать." />
                 <!-- ... много контента ... -->

@@ -1,7 +1,9 @@
 ﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Common.Utils;
 using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
 using BurnOffTheFat.Core.Services;
+using BurnOffTheFat.Core.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -106,6 +108,29 @@ public partial class TrainingViewModel : ObservableObject, IQueryAttributable, I
         }
     }
 
+    #region Свойства для отображения
+    /// <summary>
+    /// Текущая скорость
+    /// </summary>
+    [ObservableProperty]
+    private string _currentSpeedKmHText;
+    /// <summary>
+    /// Расстояние
+    /// </summary>
+    [ObservableProperty]
+    private string _totalDistanceMText;
+    /// <summary>
+    /// Точность GPS
+    /// </summary>
+    [ObservableProperty]
+    private string _gpsAccuracyText = "Погрешность GPS: Определение...";
+    #endregion
+
+    /// <summary>
+    /// Обработчик получения данных от сервиса GPS
+    /// </summary>
+    /// <param name="sender"></param>
+    /// <param name="e"></param>
     private void OnLocationReceived(object? sender, LocationPointEventArgs e)
     {
         // Обновляем свойства на главном потоке для привязок в XAML
@@ -115,6 +140,13 @@ public partial class TrainingViewModel : ObservableObject, IQueryAttributable, I
             CurrentSpeedKmH = _gpsService.CurrentSpeedKmH;
             TotalAscentM = _gpsService.TotalAscentM;
         });
+        
+        GpsAccuracyText = $"Погрешность GPS: {e.Location.Accuracy:F0} м";
+        var currentSpeedKmH = (e.Location.Speed.HasValue ? e.Location.Speed.Value : 0) * 3.6;
+        var currentPaseHKmText = PaceFormatter.Format(currentSpeedKmH);
+        CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч, темп: {currentPaseHKmText}";
+        TotalDistanceMText = $"Пройденный путь: {e.TotalDistanceM}м";
+        
     }
 
     /// <summary>
