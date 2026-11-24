@@ -17,6 +17,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IGpsLocationService _gpsService;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSetDefaultModeVisible))]
     private UserProfile? _currentProfile;
 
     public MainViewModel(CurrentUserService userService,
@@ -37,7 +38,14 @@ public partial class MainViewModel : ObservableObject
     /// Выбранный режим скорости
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSetDefaultModeVisible))]
     private SpeedMode _selectedSpeedMode = SpeedMode.Walking;
+
+    /// <summary>
+    /// Определяет, нужно ли показывать кнопку "Установить по умолчанию"
+    /// </summary>
+    public bool IsSetDefaultModeVisible =>
+        CurrentProfile != null && SelectedSpeedMode != CurrentProfile.FastTreiningMode;
 
 
     /// <summary>
@@ -72,7 +80,23 @@ public partial class MainViewModel : ObservableObject
     async partial void OnSelectedSpeedModeChanged(SpeedMode value)
     {
         _gpsService.SpeedMode = value;
-        await _userService.UpdateFastTrainingModeAsync(value);
+    }
+
+    /// <summary>
+    /// Сохраняет выбранный режим как режим по умолчанию в профиле пользователя
+    /// </summary>
+    [RelayCommand]
+    private async Task SetDefaultSpeedModeAsync()
+    {
+        if (CurrentProfile == null)
+            return;
+
+        // Обновляем в БД через ваш сервис
+        await _userService.UpdateFastTrainingModeAsync(SelectedSpeedMode);
+
+        // Обновляем локальное свойство профиля, чтобы кнопка скрылась
+        CurrentProfile.FastTreiningMode = SelectedSpeedMode;
+        OnPropertyChanged(nameof(IsSetDefaultModeVisible));
     }
 
     /// <summary>

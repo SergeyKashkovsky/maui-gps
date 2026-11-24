@@ -39,8 +39,10 @@ public static class MauiProgram
             options.UseSqlite($"Filename={dbPath}"));
         // Регистрируем сервисы из Core.Shared и Core.Maui
         builder.Services.AddSingleton<ITrackRepository, SqliteTrackRepository>();
+        builder.Services.AddSingleton<IUserProfileRepository, SqliteUserProfileRepository>();
         builder.Services.AddSingleton<CurrentUserService>();
         builder.Services.AddSingleton<IGpsLocationService, GpsLocationService>();
+        builder.Services.AddSingleton<TrackRecordingCoordinator>();
 
 #if DEBUG
         builder.Logging.AddDebug();
