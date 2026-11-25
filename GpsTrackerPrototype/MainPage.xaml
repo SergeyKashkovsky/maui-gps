@@ -2,23 +2,111 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:GpsTrackerPrototype.ViewModels"
+             xmlns:models="clr-namespace:BurnOffTheFat.Core.Models;assembly=BurnOffTheFat.Core"
+             xmlns:selectors="clr-namespace:BurnOffTheFat.Core.Selectors;assembly=BurnOffTheFat.Core"
              xmlns:converters="clr-namespace:GpsTrackerPrototype.Converters"
              x:Class="GpsTrackerPrototype.MainPage"
              x:DataType="vm:MainViewModel"
              Title="Главная">
 
-    <Grid RowDefinitions="*,Auto">
+    <ContentPage.Resources>
+        <!-- Шаблон 1: Ходьба и остальные типы (показывает среднюю скорость) -->
+        <DataTemplate x:Key="DefaultTrainingTemplate" x:DataType="models:TrainingCardModel">
+            <Border StrokeThickness="1" Stroke="#E0E0E0" StrokeShape="RoundRectangle 12" Padding="16" Margin="0,0,0,12">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="{Binding Title}" FontSize="18" FontAttributes="Bold" />
+                        <Label Grid.Column="1" 
+                               Text="{Binding TrainingType, Converter={StaticResource SpeedModeToDisplay}}" 
+                               TextColor="Gray" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="Время" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding FormattedDuration}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="Дистанция" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding FormattedDistance}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2">
+                            <Label Text="Ср. скорость" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding FormattedSpeed}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
 
-        <!-- Прокручиваемый контент -->
-        <ScrollView Grid.Row="0">
-            <VerticalStackLayout Padding="20" Spacing="15">
-                <Label Text="версия 0.1" FontSize="10" HorizontalTextAlignment="Start"/>
-                <Label Text="Заголовок" FontSize="24" FontAttributes="Bold" />
-                <Label Text="Здесь будет основной контент, который можно прокручивать." />
-                <!-- ... много контента ... -->
-                <BoxView HeightRequest="800" Color="LightGray" />
-            </VerticalStackLayout>
-        </ScrollView>
+        <!-- Шаблон 2: Бег (показывает средний темп) -->
+        <DataTemplate x:Key="RunningTrainingTemplate" x:DataType="models:TrainingCardModel">
+            <Border StrokeThickness="1" Stroke="#4CAF50" StrokeShape="RoundRectangle 12" Padding="16" Margin="0,0,0,12">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="{Binding Title}" FontSize="18" FontAttributes="Bold" />
+                        <Label Grid.Column="1" 
+                               Text="{Binding TrainingType, Converter={StaticResource SpeedModeToDisplay}}" 
+                               TextColor="#4CAF50" FontAttributes="Bold" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="Время" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding FormattedDuration}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="1">
+                            <Label Text="Дистанция" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding FormattedDistance}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                        <VerticalStackLayout Grid.Column="2">
+                            <Label Text="Ср. темп" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding AveragePace}" FontAttributes="Bold" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
+        </DataTemplate>
+
+        <!-- Селектор шаблонов -->
+        <selectors:TrainingCardTemplateSelector x:Key="TrainingSelector"
+                                                DefaultTemplate="{StaticResource DefaultTrainingTemplate}"
+                                                RunningTemplate="{StaticResource RunningTrainingTemplate}" />
+    </ContentPage.Resources>
+    
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Прокручиваемый список карточек тренировок -->
+        <CollectionView Grid.Row="0"
+                    ItemsSource="{Binding Trainings}"
+                    ItemTemplate="{StaticResource TrainingSelector}"
+                    Margin="20,15,20,0">
+            
+            <CollectionView.Header>
+                <VerticalStackLayout Spacing="4" Margin="0,0,0,15">
+                    <Label Text="Версия 1.0" 
+                   FontSize="10" 
+                   TextColor="Gray" />
+
+                    <Label Text="{Binding CurrentProfile.UserName, StringFormat='Пользователь {0}', FallbackValue='Пользователь ...'}" 
+                   FontSize="16" 
+                   TextColor="Gray" />
+
+                    <Label Text="Тренировки" 
+                   FontSize="24" 
+                   FontAttributes="Bold" 
+                   Margin="0,4,0,0" />
+                </VerticalStackLayout>
+            </CollectionView.Header>
+
+            <CollectionView.EmptyView>
+                <Label Text="Пока нет ни одной тренировки. Нажмите «Начать», чтобы записать первую!"
+                   TextColor="Gray"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   Margin="20" />
+            </CollectionView.EmptyView>
+
+        </CollectionView>
 
         <!-- Фиксированный футер -->
         <Border Grid.Row="1"

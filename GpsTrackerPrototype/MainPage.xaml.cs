@@ -19,7 +19,7 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        await _viewModel.InitializeAsync();
+        await _viewModel.InitializeCommand.ExecuteAsync(null);
     }
 
 }

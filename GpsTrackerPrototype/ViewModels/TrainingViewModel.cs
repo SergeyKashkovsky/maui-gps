@@ -124,6 +124,8 @@ public partial class TrainingViewModel : ObservableObject, IQueryAttributable, I
     /// </summary>
     [ObservableProperty]
     private string _gpsAccuracyText = "Погрешность GPS: Определение...";
+    [ObservableProperty]
+    private string _recordedPointsText = "Записано точек: 0";
     #endregion
 
     /// <summary>
@@ -146,7 +148,7 @@ public partial class TrainingViewModel : ObservableObject, IQueryAttributable, I
         var currentPaseHKmText = PaceFormatter.Format(currentSpeedKmH);
         CurrentSpeedKmHText = $"Текущая скорость {currentSpeedKmH:F2} км/ч, темп: {currentPaseHKmText}";
         TotalDistanceMText = $"Пройденный путь: {e.TotalDistanceM}м";
-        
+        RecordedPointsText = $"Записано точек: {e.PointCount}";
     }
 
     /// <summary>

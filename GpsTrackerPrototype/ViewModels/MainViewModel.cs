@@ -1,9 +1,12 @@
 ﻿using BurnOffTheFat.Common.Enums;
+using BurnOffTheFat.Common.Interfaces;
 using BurnOffTheFat.Common.Models.Dto;
 using BurnOffTheFat.Core.Interfaces;
+using BurnOffTheFat.Core.Models;
 using BurnOffTheFat.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Collections.ObjectModel;
 
 namespace GpsTrackerPrototype.ViewModels;
 
@@ -15,6 +18,7 @@ public partial class MainViewModel : ObservableObject
     private readonly CurrentUserService _userService;
     private readonly TrackRecordingCoordinator _coordinator;
     private readonly IGpsLocationService _gpsService;
+    private readonly ITrackRepository _trackRepository;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSetDefaultModeVisible))]
@@ -22,11 +26,13 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel(CurrentUserService userService,
         TrackRecordingCoordinator coordinator,
-        IGpsLocationService gpsService)
+        IGpsLocationService gpsService,
+        ITrackRepository trackRepository)
     {
         _userService = userService;
         _coordinator = coordinator;
         _gpsService = gpsService;
+        _trackRepository = trackRepository;
     }
 
     /// <summary>
@@ -34,6 +40,10 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public IReadOnlyList<SpeedMode> SpeedModes { get; } =
         Enum.GetValues<SpeedMode>();
+    /// <summary>
+    /// Список моделей для списка тренировок
+    /// </summary>
+    public ObservableCollection<TrainingCardModel> Trainings { get; } = new();
     /// <summary>
     /// Выбранный режим скорости
     /// </summary>
@@ -54,25 +64,46 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task InitializeAsync()
     {
-        // 1. Загружаем или создаем профиль пользователя
-        CurrentProfile = await _userService.InitializeAsync();
-        SelectedSpeedMode = CurrentProfile.FastTreiningMode;
-        OnPropertyChanged(nameof(SelectedSpeedMode));
-        _gpsService.SpeedMode = SelectedSpeedMode;
-
-        // 2. Проверяем, не оборвался ли прошлый трек из-за сбоя
-        var recoveredTrack = await _coordinator.RecoverUnfinishedTrackAsync(CurrentProfile.Id);
-        if (recoveredTrack != null)
+        if (CurrentProfile == null)
         {
-            await Shell.Current.DisplayAlertAsync(
-                "Трек восстановлен",
-                $"Предыдущая запись была завершена аварийно. Сохранено {recoveredTrack.TotalDistanceMeters:F0} м.",
-                "ОК");
-        }
+            CurrentProfile = await _userService.InitializeAsync();
+            SelectedSpeedMode = CurrentProfile.FastTreiningMode;
+            OnPropertyChanged(nameof(SelectedSpeedMode));
+            _gpsService.SpeedMode = SelectedSpeedMode;
+
+            // Проверяем аварийный трек только при старте приложения
+            var recoveredTrack = await _coordinator.RecoverUnfinishedTrackAsync(CurrentProfile.Id);
+            if (recoveredTrack != null)
+            {
+                await Shell.Current.DisplayAlertAsync(
+                    "Трек восстановлен",
+                    $"Предыдущая запись была завершена аварийно. Сохранено {recoveredTrack.TotalDistanceMeters:F0} м.",
+                    "ОК");
+            }
 #if ANDROID
-        AndriodPermissionService.CheckAndRequestBatteryOptimizations();
+            AndriodPermissionService.CheckAndRequestBatteryOptimizations();
 #endif
+        }
+        await LoadTrainingsAsync();
     }
+    /// <summary>
+    /// Загрузка списка тренировок
+    /// </summary>
+    /// <returns></returns>
+    private async Task LoadTrainingsAsync()
+    {
+        if (CurrentProfile == null) return;
+
+        // TODO: Замените на реальный вызов вашего сервиса/репозитория из БД
+        var itemsFromDb = await _trackRepository.GetUserTracksAsync(CurrentProfile.Id);
+
+        Trainings.Clear();
+        foreach (var item in itemsFromDb)
+        {
+            Trainings.Add(TrainingCardModel.FromTrack(item));
+        }
+    }
+
     /// <summary>
     /// Обработчик выбора режима скорости
     /// </summary>

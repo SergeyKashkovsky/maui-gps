@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using BurnOffTheFat.Common.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace BurnOffTheFat.Common.Models.Dto;
 /// <summary>
@@ -42,7 +43,13 @@ public class Track
     /// Продолжительность
     /// </summary>
     public TimeSpan Duration { get; set; }
+
     #endregion
+
+    /// <summary>
+    /// Тип тренировки
+    /// </summary>
+    public SpeedMode SpeedMode { get; set; }
 
     #region  Поля для будущей синхронизации с сервером
     /// <summary>
