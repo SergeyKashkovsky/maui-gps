@@ -1,10 +1,14 @@
 ﻿
+using BurnOffTheFat.Common.Enums;
 using BurnOffTheFat.Common.Interfaces;
 using BurnOffTheFat.Common.Models.Dto;
 using BurnOffTheFat.Common.Utils;
 using BurnOffTheFat.Core.Events;
 using BurnOffTheFat.Core.Interfaces;
+using BurnOffTheFat.Core.Utils;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace BurnOffTheFat.Core.Services;
 
@@ -19,6 +23,8 @@ public class TrackRecordingCoordinator : IDisposable
     private readonly List<TrackPoint> _pointBuffer = new();
     private readonly SemaphoreSlim _bufferLock = new(1, 1);
     private readonly Stopwatch _durationTimer = new();
+    private readonly ITrackFileService _gpxFileService;
+    private readonly ILogger<TrackRecordingCoordinator> _logger;
 
     private const int BatchSize = 15;
     private Guid? _currentTrackId;
@@ -27,12 +33,15 @@ public class TrackRecordingCoordinator : IDisposable
 
     public TrackRecordingCoordinator(
         IGpsLocationService gpsService,
-        ITrackRepository trackRepository)
+        ITrackRepository trackRepository,
+        ITrackFileService fileService,
+        ILogger<TrackRecordingCoordinator> logger)
     {
         _gpsService = gpsService;
         _trackRepository = trackRepository;
-
-        // Подписываемся на валидные точки от GPS-сервиса
+        _gpxFileService = fileService;
+        _logger = logger;
+        // Подписываемся на точки от GPS-сервиса
         _gpsService.LocationReceived += OnLocationReceived;
     }
     /// <summary>
@@ -41,15 +50,16 @@ public class TrackRecordingCoordinator : IDisposable
     /// <param name="user"></param>
     /// <param name="trackTitle"></param>
     /// <returns></returns>
-    public async Task<bool> StartWorkoutAsync(UserProfile user, string trackTitle)
+    public async Task<bool> StartWorkoutAsync(UserProfile user, string trackTitle, SpeedMode speedMode)
     {
         if (IsRecording) return false;
-
+        _logger.LogDebug("Запуск тренировки {title} типа {mode}", trackTitle, speedMode);
         // 1. Применяем настройки из профиля пользователя к GPS-сервису
-        _gpsService.SpeedMode = user.FastTreiningMode;
+        _gpsService.SpeedMode = speedMode;
 
         // 2. Запускаем запись GPS
-        bool started = await _gpsService.StartRecordingAsync();
+        await _gpsService.StartListenAsync();
+        var started = await _gpsService.StartRecordingAsync();
         if (!started) return false;
 
         // 3. Создаем заголовок трека в БД
@@ -59,8 +69,9 @@ public class TrackRecordingCoordinator : IDisposable
         await _bufferLock.WaitAsync();
         try { _pointBuffer.Clear(); }
         finally { _bufferLock.Release(); }
-
+        _logger.LogDebug("Тренировка запущена");
         _durationTimer.Restart();
+
         return true;
     }
     /// <summary>
@@ -118,6 +129,7 @@ public class TrackRecordingCoordinator : IDisposable
         if (_currentTrackId == null) return;
 
         await _gpsService.StopRecordingAsync();
+        _gpsService.StopListen();
         _durationTimer.Stop();
 
         Guid trackId = _currentTrackId.Value;
@@ -141,6 +153,15 @@ public class TrackRecordingCoordinator : IDisposable
             trackId,
             _gpsService.TotalDistance,
             _durationTimer.Elapsed);
+
+        var fileName = $"track_{DateTime.Now:yyyyMMdd_HHmmss}";
+        var filePath = FileSystemUtils.GetApllicationPublicDirectory();
+        var jsonFileName = Path.Combine(filePath, $"{fileName}.json");
+        var fileResult = await _gpxFileService.CreateFileFromTextAsync(jsonFileName, JsonSerializer.Serialize(_gpsService.SourcePoints), CancellationToken.None);
+        if (fileResult.Success)
+            _logger.LogDebug($"Исходный трек сохранен! Количество точек: {_gpsService.SourcePoints}. Файл: {fileResult.FilePath}");
+        else
+            _logger.LogWarning("Ошибка сохранения исходного трека: {mess}", fileResult.Message);
     }
     /// <summary>
     /// Восстановление не завершенных треков
@@ -152,12 +173,14 @@ public class TrackRecordingCoordinator : IDisposable
         var unfinished = await _trackRepository.GetUnfinishedTrackAsync(userId);
         if (unfinished == null) return null;
 
+        _logger.LogDebug("Восстанавливаю не завершенный трек: {@track}", unfinished);
         var orderedPoints = unfinished.Points.OrderBy(p => p.Timestamp).ToList();
 
         // Если трек оборвался сразу после старта и точек почти нет — удаляем
         if (orderedPoints.Count < 2)
         {
             await _trackRepository.DeleteTrackAsync(unfinished.Id);
+            _logger.LogDebug("Удаляю не завершенный трек: слишком мало точек");
             return null;
         }
 
@@ -181,7 +204,7 @@ public class TrackRecordingCoordinator : IDisposable
         unfinished.TotalDistanceMeters = recoveredDistance;
         unfinished.Duration = recoveredDuration;
         unfinished.EndTime = lastPointTime.LocalDateTime;
-
+        _logger.LogDebug("Трек завершен");
         return unfinished;
     }
 

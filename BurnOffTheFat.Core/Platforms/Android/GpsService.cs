@@ -28,7 +28,7 @@ public class GpsService : Service
             CreateNotificationChannel();
 
             var notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .SetContentTitle("Сгоняем жиры")
+                .SetContentTitle("GPS трекер")// .SetContentTitle("Сгоняем жиры")
                 .SetContentText("Приложение записывает ваш GPS-маршрут...")
                 .SetSmallIcon(global::Android.Resource.Drawable.IcMenuCompass) // Проверьте, чтобы иконка существовала
                 .SetOngoing(true)

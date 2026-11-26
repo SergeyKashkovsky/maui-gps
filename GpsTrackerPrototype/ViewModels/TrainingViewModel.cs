@@ -79,8 +79,8 @@ public partial class TrainingViewModel : ObservableObject, IQueryAttributable, I
 
         var user = _userService.CurrentUser ?? await _userService.InitializeAsync();
 
-        string title = $"Поход {DateTime.Now:dd.MM.yyyy HH:mm}";
-        bool started = await _coordinator.StartWorkoutAsync(user, title);
+        var title = $"Тренировка {DateTime.Now:dd.MM.yyyy HH:mm}"; //TODO: заменить, в зависимости от типа  тренировки
+        var started = await _coordinator.StartWorkoutAsync(user, title, CurrentSpeedMode);
 
         if (!started)
         {

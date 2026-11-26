@@ -94,7 +94,6 @@ public partial class MainViewModel : ObservableObject
     {
         if (CurrentProfile == null) return;
 
-        // TODO: Замените на реальный вызов вашего сервиса/репозитория из БД
         var itemsFromDb = await _trackRepository.GetUserTracksAsync(CurrentProfile.Id);
 
         Trainings.Clear();
@@ -137,8 +136,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task StartAsync()
     {
-        if (CurrentProfile == null)
-            CurrentProfile = await _userService.InitializeAsync();
+        CurrentProfile ??= await _userService.InitializeAsync();
         await _gpsService.StartListenAsync();
         // Передаём выбранный режим на вторую страницу через параметр
         await Shell.Current.GoToAsync(nameof(Views.TrainingPage),
